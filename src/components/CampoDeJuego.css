@@ -1,0 +1,12 @@
+/* src/components/CampoDeJuego.css */
+.campo-container { background-color: #3a7d44; padding: 10px; border-radius: 8px; }
+.campo { position: relative; width: 100%; padding-top: 150%; background-color: #4CAF50; border: 2px solid white; }
+.linea-central { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: white; }
+.circulo-central { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20%; height: 13.33%; border: 2px solid white; border-radius: 50%; }
+.area-grande { position: absolute; left: 10%; right: 10%; height: 18%; border: 2px solid white; }
+.area-grande.top { top: 0; border-top: none; }
+.area-grande.bottom { bottom: 0; border-bottom: none; }
+.posiciones-grid { display: grid; grid-template-rows: repeat(11, 1fr); height: 100%; position: absolute; top: 0; left: 0; right: 0; z-index: 10; }
+.jugador-en-campo { display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
+.nombre-jugador { font-size: 0.7em; font-weight: bold; }
+.dorsal-jugador { font-size: 1em; font-weight: bold; background: #333; border-radius: 50%; width: 25px; height: 25px; line-height: 25px; }

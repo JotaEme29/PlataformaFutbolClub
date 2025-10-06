@@ -1,17 +1,17 @@
-// src/pages/DetalleEvento.jsx - VERSIÓN FINAL CON CLASES CSS Y LÓGICA COMPLETA
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, getDocs, collection, addDoc, updateDoc, deleteDoc, where, query, increment, writeBatch } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { registrarAccion, escucharAccionesEnVivo } from '../services/PartidoService.js';
+import Cronometro from '../components/Cronometro';
 
 function DetalleEvento() {
   const { eventoId } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
 
-  // --- NO HAY CAMBIOS EN LOS ESTADOS ---
+  // --- Estados del Componente ---
   const [evento, setEvento] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,28 +21,52 @@ function DetalleEvento() {
   const [evaluaciones, setEvaluaciones] = useState({});
   const [evaluacionesGuardadas, setEvaluacionesGuardadas] = useState([]);
   const [yaEvaluado, setYaEvaluado] = useState(false);
-  const [vista, setVista] = useState('convocatoria');
   const [statsPartido, setStatsPartido] = useState({ goles_local: 0, goles_visitante: 0 });
+  const [vista, setVista] = useState('convocatoria');
 
-  // --- NO HAY CAMBIOS EN LA LÓGICA (useEffect, funciones, etc.) ---
+  // --- Estados para la funcionalidad "En Vivo" ---
+  const [accionesEnVivo, setAccionesEnVivo] = useState([]);
+  const [seleccionandoJugador, setSeleccionandoJugador] = useState(null);
+  const [titulares, setTitulares] = useState([]);
+  const [suplentes, setSuplentes] = useState([]);
+  const [cronoEnPausa, setCronoEnPausa] = useState(true);
+  const [minutoActual, setMinutoActual] = useState(0);
+  // Justo debajo de los otros estados "En Vivo"
+  const [fasePartido, setFasePartido] = useState('preparacion'); // 'preparacion', 'primer_tiempo', 'descanso', 'segundo_tiempo', 'finalizado'
+  // Justo debajo de los otros estados "En Vivo"
+  const [tiempoPrimeraParte, setTiempoPrimeraParte] = useState(0);
+  const [tiempoSegundaParte, setTiempoSegundaParte] = useState(0);
+  // En DetalleEvento.jsx, junto a las otras funciones
+  const resetearTiempos = () => {
+  setTiempoPrimeraParte(0);
+  setTiempoSegundaParte(0);
+  };
+
+
+
+  // --- Carga de Datos Inicial ---
   useEffect(() => {
     const obtenerDatos = async () => {
       if (!currentUser?.teamId) { setLoading(false); setError("No se ha podido verificar tu equipo."); return; }
       const eventoDocRef = doc(db, 'eventos', eventoId);
       const eventoDoc = await getDoc(eventoDocRef);
       if (!eventoDoc.exists() || eventoDoc.data().teamId !== currentUser.teamId) { setError("Evento no encontrado o no tienes permiso para verlo."); setLoading(false); return; }
+      
       const eventoData = { id: eventoDoc.id, ...eventoDoc.data() };
       setEvento(eventoData);
       if (typeof eventoData.goles_local !== 'undefined') { setStatsPartido({ goles_local: eventoData.goles_local, goles_visitante: eventoData.goles_visitante }); }
+      
       const qPlantilla = query(collection(db, 'jugadores'), where("teamId", "==", currentUser.teamId));
       const plantillaSnapshot = await getDocs(qPlantilla);
       const listaPlantilla = plantillaSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setPlantilla(listaPlantilla);
+      
       const qEvaluaciones = query(collection(db, 'evaluaciones'), where('id_evento', '==', eventoId), where('teamId', '==', currentUser.teamId));
       const evaluacionesSnapshot = await getDocs(qEvaluaciones);
-      if (!evaluacionesSnapshot.empty) {
-        setYaEvaluado(true);
-        setVista('evaluacion');
+      const evaluado = !evaluacionesSnapshot.empty;
+      setYaEvaluado(evaluado);
+
+      if (evaluado) {
         const datosGuardados = evaluacionesSnapshot.docs.map(docEval => {
           const datos = docEval.data();
           const jugadorInfo = listaPlantilla.find(j => j.id === datos.id_jugador);
@@ -50,14 +74,34 @@ function DetalleEvento() {
         });
         setEvaluacionesGuardadas(datosGuardados);
       }
+
       const convocadosIds = eventoData.convocados || [];
-      setConvocados(listaPlantilla.filter(j => convocadosIds.includes(j.id)));
+      const jugadoresConvocados = listaPlantilla.filter(j => convocadosIds.includes(j.id));
+      setConvocados(jugadoresConvocados);
       setNoConvocados(listaPlantilla.filter(j => !convocadosIds.includes(j.id)));
+      
+      // Inicializamos la alineación para la vista "En Vivo"
+      setTitulares([]);
+      setSuplentes(jugadoresConvocados);
+      
       setLoading(false);
     };
     obtenerDatos();
   }, [eventoId, currentUser]);
 
+  // --- Listener para Acciones en Vivo ---
+  useEffect(() => {
+    if (vista !== 'en_vivo' || !eventoId) return;
+    const unsubscribe = escucharAccionesEnVivo(eventoId, (nuevasAcciones) => {
+      setAccionesEnVivo(nuevasAcciones);
+    });
+    return () => {
+      console.log("Cerrando listener de acciones en vivo.");
+      unsubscribe();
+    };
+  }, [vista, eventoId]);
+
+  // --- Funciones de Gestión de Convocatoria ---
   const moverJugador = (jugador, aConvocados) => {
     if (yaEvaluado) { alert("No se puede modificar la convocatoria de un evento que ya ha sido evaluado."); return; }
     if (aConvocados) {
@@ -84,6 +128,69 @@ function DetalleEvento() {
     window.location.reload();
   };
 
+  // --- Funciones de Gestión "En Vivo" ---
+  const gestionarAlineacion = (jugador, aTitulares) => {
+    if (aTitulares) {
+      setSuplentes(suplentes.filter(j => j.id !== jugador.id));
+      setTitulares([...titulares, jugador]);
+    } else {
+      setTitulares(titulares.filter(j => j.id !== jugador.id));
+      setSuplentes([...suplentes, jugador]);
+    }
+  };
+
+  const iniciarSeleccionJugador = (tipoAccion) => {
+    setSeleccionandoJugador({ tipo: tipoAccion });
+  };
+
+  // En DetalleEvento.jsx
+
+const finalizarSeleccionJugador = async (jugador) => {
+  // Si no estamos en modo de selección, no hacemos nada.
+  if (!seleccionandoJugador) return;
+
+  try {
+    // Mensaje en la consola para depuración.
+    console.log(`Registrando ${seleccionandoJugador.tipo} para ${jugador.nombre}...`);
+
+    // PASO 1: Crear el objeto 'accion' con todos sus datos.
+    const accion = {
+      tipo: seleccionandoJugador.tipo,
+      jugador_principal_id: jugador.id,
+      nombre_jugador: `${jugador.nombre} ${jugador.apellidos}`,
+      // Calcula el minuto redondeado hacia arriba, usando el tiempo de la fase actual del partido.
+      minuto: Math.ceil((fasePartido === 'primer_tiempo' ? tiempoPrimeraParte : tiempoSegundaParte) / 60)
+      };
+
+    // PASO 2: Si la acción es un GOL, actualizamos el estado del marcador.
+    if (accion.tipo === 'GOL') {
+      setStatsPartido(prevStats => {
+        const esLocal = evento.condicion === 'Local';
+        return {
+          ...prevStats,
+          goles_local: esLocal ? prevStats.goles_local + 1 : prevStats.goles_local,
+          goles_visitante: !esLocal ? prevStats.goles_visitante + 1 : prevStats.goles_visitante,
+        };
+      });
+    }
+
+    // PASO 3: Guardamos la acción en la base de datos usando el servicio.
+    await registrarAccion(eventoId, accion);
+
+    console.log("¡Acción registrada con éxito!");
+
+  } catch (error) {
+    // Si ocurre un error al guardar, lo mostramos en la consola y al usuario.
+    console.error("Error al registrar la acción:", error);
+    alert("No se pudo registrar la acción. Inténtalo de nuevo.");
+  } finally {
+    // PASO 4: Se ejecuta siempre. Limpiamos el estado para salir del modo de selección.
+    setSeleccionandoJugador(null);
+  }
+};
+
+
+  // --- Funciones de Evaluación y Estadísticas ---
   const handleEvalChange = (jugadorId, campo, valor) => { setEvaluaciones(prev => ({ ...prev, [jugadorId]: { ...prev[jugadorId], [campo]: Number(valor) } })); };
   const handleStatsPartidoChange = (e) => { const { name, value } = e.target; setStatsPartido(prev => ({ ...prev, [name]: Number(value) })); };
 
@@ -138,25 +245,140 @@ function DetalleEvento() {
     }
   };
 
+  // Debajo de la función `eliminarEvento`
+
+const sincronizarAccionesConEvaluacion = async () => {
+  console.log("Sincronizando acciones con el formulario de evaluación...");
+  
+  // 1. Obtenemos todas las acciones del partido desde Firestore.
+  const q = query(collection(db, 'eventos', eventoId, 'acciones_partido'));
+  const accionesSnapshot = await getDocs(q);
+  const accionesDelPartido = accionesSnapshot.docs.map(doc => doc.data());
+
+  if (accionesDelPartido.length === 0) {
+    console.log("No hay acciones en vivo para sincronizar.");
+    return; // No hay nada que hacer
+  }
+
+  // 2. Creamos un objeto para almacenar los totales de cada jugador.
+  const totalesPorJugador = {};
+
+  // NUEVO: Pre-rellenamos la evaluación de cada convocado con un valor base
+  for (const jugador of convocados) {
+    totalesPorJugador[jugador.id] = {
+      tecnica: 5,
+      fisico: 5,
+      tactica: 5,
+      actitud: 5,
+      goles: 0,
+      asistencias: 0,
+      tarjetas_amarillas_partido: 0,
+      tarjetas_rojas_partido: 0,
+      minutos_jugados: 0,
+      faltas_cometidas_partido: 0, // Asumimos 0 por ahora
+    };
+  }
+
+  // 3. Iteramos sobre cada acción para contar los totales.
+  for (const accion of accionesDelPartido) {
+    const jugadorId = accion.jugador_principal_id;
+
+    // Si es la primera vez que vemos a este jugador, inicializamos su objeto.
+    if (!totalesPorJugador[jugadorId]) {
+      totalesPorJugador[jugadorId] = {
+        goles: 0,
+        asistencias: 0,
+        tarjetas_amarillas_partido: 0,
+        tarjetas_rojas_partido: 0,
+      };
+    }
+
+    // 4. Sumamos al contador correspondiente según el tipo de acción.
+    switch (accion.tipo) {
+      case 'GOL':
+        totalesPorJugador[jugadorId].goles += 1;
+        break;
+      case 'ASISTENCIA':
+        totalesPorJugador[jugadorId].asistencias += 1;
+        break;
+      case 'AMARILLA':
+        totalesPorJugador[jugadorId].tarjetas_amarillas_partido += 1;
+        break;
+      case 'ROJA':
+        totalesPorJugador[jugadorId].tarjetas_rojas_partido += 1;
+        break;
+      default:
+        break;
+    }
+
+    // 5. Añadimos los minutos jugados a los titulares
+  const minutosDelPartido = minutoActual;
+  for (const jugador of titulares) {
+    if (!totalesPorJugador[jugador.id]) {
+      totalesPorJugador[jugador.id] = {}; // Aseguramos que el objeto exista
+    }
+    // Asignamos los minutos totales del partido a quienes terminaron jugando
+    totalesPorJugador[jugador.id].minutos_jugados = minutosDelPartido;
+  }
+
+  // 6. Actualizamos el estado 'evaluaciones' con los totales calculados.
+  setEvaluaciones(evaluacionesPrevias => {
+    // ... (el resto de la función se mantiene igual)
+  });
+};
+
+  // 5. Actualizamos el estado 'evaluaciones' con los totales calculados.
+  // Usamos el formato funcional de setEvaluaciones para asegurar que partimos del estado más reciente.
+  setEvaluaciones(evaluacionesPrevias => {
+    const nuevasEvaluaciones = { ...evaluacionesPrevias };
+    for (const jugadorId in totalesPorJugador) {
+      nuevasEvaluaciones[jugadorId] = {
+        ...nuevasEvaluaciones[jugadorId], // Mantenemos cualquier dato ya existente (ej. técnica)
+        ...totalesPorJugador[jugadorId], // Sobrescribimos con los nuevos totales
+      };
+    }
+    return nuevasEvaluaciones;
+  });
+
+  console.log("Sincronización completada. Estado de evaluaciones actualizado:", totalesPorJugador);
+};
+
+
+  // --- Renderizado del Componente ---
   if (loading) return <div>Cargando evento...</div>;
   if (error) return <div className="card auth-error">{error}</div>;
 
-  // --- ¡AQUÍ EMPIEZAN LOS CAMBIOS DE ESTILO! ---
   return (
     <div>
       <h1>{evento.tipo}: {evento.descripcion}</h1>
       <p>{new Date(evento.fecha).toLocaleDateString()} ({evento.condicion})</p>
 
-      {/* CAMBIO 1: Reemplazado el div con style por uno con className */}
       <div className="botones-vista-evento">
-        <button onClick={() => setVista('convocatoria')} className={vista === 'convocatoria' ? '' : 'btn-secondary'}>1. Convocatoria</button>
-        <button onClick={() => setVista('evaluacion')} className={vista === 'evaluacion' ? '' : 'btn-secondary'}>2. Evaluación y Estadísticas</button>
+        <button onClick={() => setVista('convocatoria')} className={vista === 'convocatoria' ? '' : 'btn-secondary'}>
+          1. Convocatoria
+        </button>
+        {evento?.convocados?.length > 0 && !yaEvaluado && (
+          <button onClick={() => setVista('en_vivo')} className={vista === 'en_vivo' ? '' : 'btn-secondary'}>
+            2. Seguimiento en Vivo
+          </button>
+        )}
+            <button 
+            onClick={() => {
+              setVista('evaluacion');
+              if (!yaEvaluado) { // Solo sincronizamos si el partido no ha sido guardado/evaluado aún
+                sincronizarAccionesConEvaluacion();
+              }
+            }} 
+            className={vista === 'evaluacion' ? '' : 'btn-secondary'}
+          >
+
+          {evento?.convocados?.length > 0 && !yaEvaluado ? '3. Evaluación' : '2. Evaluación'}
+        </button>
       </div>
 
       {vista === 'convocatoria' && (
         <div className="card">
           <h2>Gestión de Convocatoria</h2>
-          {/* CAMBIO 2: Usando clases para el grid de convocatoria */}
           <div className="convocatoria-grid">
             <div>
               <h3>Plantilla ({noConvocados.length})</h3>
@@ -175,18 +397,124 @@ function DetalleEvento() {
         </div>
       )}
 
+      {vista === 'en_vivo' && (
+        <div className="card">
+          <h2>Seguimiento en Vivo</h2>
+          {/* Panel del Cronómetro y Controles de Fase del Partido */}
+          <div style={{ borderBottom: '1px solid #444', marginBottom: '20px', paddingBottom: '20px', textAlign: 'center' }}>
+            // Dentro del return de DetalleEvento.jsx
+            <Cronometro 
+              enPausa={cronoEnPausa}
+              onTiempoActualizado={(segundos) => {
+                if (fasePartido === 'primer_tiempo') setTiempoPrimeraParte(segundos);
+                if (fasePartido === 'segundo_tiempo') setTiempoSegundaParte(segundos);
+              }}
+              fase={fasePartido} // ¡Esta línea es crucial!
+            />
+
+            <div style={{ marginTop: '10px', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              
+              {fasePartido === 'preparacion' && (
+                <button onClick={() => { setCronoEnPausa(false); setFasePartido('primer_tiempo'); }} disabled={titulares.length < 7}>
+                  ▶ Iniciar 1er Tiempo
+                </button>
+              )}
+
+              {fasePartido === 'primer_tiempo' && (
+                <button onClick={() => { setCronoEnPausa(true); setFasePartido('descanso'); }}>
+                  ❚❚ Finalizar 1er Tiempo
+                </button>
+              )}
+
+              // En el JSX de los botones de fase
+              {fasePartido === 'descanso' && (
+                <button onClick={() => { 
+                  // ¡CORRECCIÓN AQUÍ!
+                  // No reseteamos el crono, simplemente lo reanudamos.
+                  // El tiempo del 2do tiempo se acumulará en su propio estado.
+                  setCronoEnPausa(false); 
+                  setFasePartido('segundo_tiempo'); 
+                }}>
+                  ▶ Iniciar 2do Tiempo
+                </button>
+              )}
+
+
+              {fasePartido === 'segundo_tiempo' && (
+                <button onClick={() => { setCronoEnPausa(true); setFasePartido('finalizado'); sincronizarAccionesConEvaluacion(); setVista('evaluacion'); }}>
+                  🏁 Finalizar Partido y Evaluar
+                </button>
+              )}
+
+            </div>
+          </div>
+
+          {cronoEnPausa && minutoActual === 0 ? (
+            <div>
+              <h3>Definir Alineación Titular</h3>
+              <div className="convocatoria-grid">
+                <div>
+                  <h3>Suplentes ({suplentes.length})</h3>
+                  <div className="lista-jugadores-convocatoria">
+                    {suplentes.map(j => <div key={j.id} onClick={() => gestionarAlineacion(j, true)} className="item-jugador clickable">{j.nombre} {j.apellidos}</div>)}
+                  </div>
+                </div>
+                <div>
+                  <h3>Titulares ({titulares.length})</h3>
+                  <div className="lista-jugadores-convocatoria">
+                    {titulares.map(j => <div key={j.id} onClick={() => gestionarAlineacion(j, false)} className="item-jugador convocado clickable">{j.nombre} {j.apellidos}</div>)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div>
+              {seleccionandoJugador ? (
+                <div>
+                  <h3>Selecciona el jugador para: <strong>{seleccionandoJugador.tipo}</strong></h3>
+                  <div className="lista-jugadores-convocatoria">
+                    {titulares.map(jugador => <div key={jugador.id} className="item-jugador clickable" onClick={() => finalizarSeleccionJugador(jugador)}>{jugador.nombre} {jugador.apellidos}</div>)}
+                  </div>
+                  <button onClick={() => setSeleccionandoJugador(null)} className="btn-secondary" style={{marginTop: '10px'}}>Cancelar</button>
+                </div>
+              ) : (
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
+                  <div>
+                    <h3>Registrar Acción</h3>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                      <button onClick={() => iniciarSeleccionJugador('GOL')}>⚽ Registrar Gol</button>
+                      <button onClick={() => iniciarSeleccionJugador('ASISTENCIA')}>🤝 Registrar Asistencia</button>
+                      <button onClick={() => iniciarSeleccionJugador('AMARILLA')}>🟨 Tarjeta Amarilla</button>
+                      <button onClick={() => iniciarSeleccionJugador('ROJA')}>🟥 Tarjeta Roja</button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3>Feed de Acciones</h3>
+                    <div className="lista-jugadores-convocatoria" style={{minHeight: '200px'}}>
+                      {accionesEnVivo.length > 0 ? (
+                        accionesEnVivo.slice().reverse().map(accion => <div key={accion.id} className="item-jugador">{accion.minuto}' - {accion.tipo} de {accion.nombre_jugador}</div>)
+                      ) : (
+                        <p>Aún no se han registrado acciones.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {vista === 'evaluacion' && (
         <div>
           {yaEvaluado ? (
             <div className="card">
               <h2>Estadísticas Registradas del Partido</h2>
-              {/* CAMBIO 3: Usando clases para el marcador */}
               <div className="marcador-final">
                 <span>{evento.goles_favor}</span>
                 <span>-</span>
                 <span>{evento.goles_contra}</span>
               </div>
-              {/* CAMBIO 4: Envolviendo la tabla en el div responsive */}
               <div className="tabla-responsive-wrapper">
                 <table>
                   <thead><tr><th>Jugador</th><th>Téc.</th><th>Fís.</th><th>Táct.</th><th>Act.</th><th>Min.</th><th>Goles</th><th>Asist.</th><th>TA</th><th>TR</th><th>Faltas</th></tr></thead>
@@ -198,7 +526,6 @@ function DetalleEvento() {
             <div>
               <div className="card">
                 <h2>Resultado del Partido</h2>
-                {/* CAMBIO 5: Usando clases para el formulario del resultado */}
                 <div className="form-resultado-partido">
                   <div className="input-group">
                     <label>{evento.condicion === 'Local' ? 'Tu Equipo (Local)' : 'Equipo Local'}</label>
@@ -220,8 +547,9 @@ function DetalleEvento() {
                       {convocados.map(jugador => (
                         <tr key={jugador.id}>
                           <td>{jugador.nombre} {jugador.apellidos}</td>
-                          {['tecnica', 'fisico', 'tactica', 'actitud'].map(c => (<td key={c}><input type="number" min="0" max="10" onChange={e => handleEvalChange(jugador.id, c, e.target.value)} disabled={currentUser?.rol !== 'administrador'} /></td>))}
-                          {['minutos_jugados', 'goles', 'asistencias', 'tarjetas_amarillas_partido', 'tarjetas_rojas_partido', 'faltas_cometidas_partido'].map(c => (<td key={c}><input type="number" min="0" onChange={e => handleEvalChange(jugador.id, c, e.target.value)} disabled={currentUser?.rol !== 'administrador'} /></td>))}
+                          {['tecnica', 'fisico', 'tactica', 'actitud'].map(c => (<td key={c}><input type="number" min="0" max="10" value={evaluaciones[jugador.id]?.[c] || ''} onChange={e => handleEvalChange(jugador.id, c, e.target.value)} disabled={currentUser?.rol !== 'administrador'} /></td>))}
+                          {['minutos_jugados', 'goles', 'asistencias', 'tarjetas_amarillas_partido', 'tarjetas_rojas_partido', 'faltas_cometidas_partido'].map(c => (<td key={c}><input type="number" min="0" value={evaluaciones[jugador.id]?.[c] || ''} onChange={e => handleEvalChange(jugador.id, c, e.target.value)} disabled={currentUser?.rol !== 'administrador'} /></td>))}
+
                         </tr>
                       ))}
                     </tbody>
@@ -233,6 +561,7 @@ function DetalleEvento() {
           )}
         </div>
       )}
+
       {currentUser?.rol === 'administrador' && (
         <div style={{ marginTop: '40px', textAlign: 'center' }}>
           <button onClick={eliminarEvento} className="btn-danger-outline">Eliminar este evento</button>

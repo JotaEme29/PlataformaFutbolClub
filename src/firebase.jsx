@@ -1,10 +1,15 @@
-// src/firebase.js
+// src/firebase.js - VERSIÓN DE DEPURACIÓN
 
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
-// Este es el objeto que copiaste desde la web de Firebase
+// --- ¡¡¡EL CHIVATO!!! ---
+// Imprimimos en la consola la API Key que Vite está leyendo.
+// Esto nos dirá la verdad.
+console.log("API Key leída por Vite:", import.meta.env.VITE_FIREBASE_API_KEY);
+// -------------------------
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -14,12 +19,14 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Inicializamos la aplicación de Firebase
-const app = initializeApp(firebaseConfig);
+// Validamos que la API Key no sea undefined antes de inicializar
+if (!firebaseConfig.apiKey) {
+  // Lanzamos un error mucho más claro en la consola
+  throw new Error("ERROR CRÍTICO: La API Key de Firebase no se ha cargado. Revisa tu archivo .env.local y reinicia el servidor.");
+}
 
-// Obtenemos las instancias de los servicios que vamos a usar
+const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// ¡LÍNEA CLAVE! Exportamos ambos servicios para que otros archivos puedan usarlos.
 export { db, auth };
