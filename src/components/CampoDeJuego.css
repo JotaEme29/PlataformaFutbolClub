@@ -1,12 +1,129 @@
-/* src/components/CampoDeJuego.css */
-.campo-container { background-color: #3a7d44; padding: 10px; border-radius: 8px; }
-.campo { position: relative; width: 100%; padding-top: 150%; background-color: #4CAF50; border: 2px solid white; }
-.linea-central { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: white; }
-.circulo-central { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20%; height: 13.33%; border: 2px solid white; border-radius: 50%; }
-.area-grande { position: absolute; left: 10%; right: 10%; height: 18%; border: 2px solid white; }
-.area-grande.top { top: 0; border-top: none; }
-.area-grande.bottom { bottom: 0; border-bottom: none; }
-.posiciones-grid { display: grid; grid-template-rows: repeat(11, 1fr); height: 100%; position: absolute; top: 0; left: 0; right: 0; z-index: 10; }
-.jugador-en-campo { display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
-.nombre-jugador { font-size: 0.7em; font-weight: bold; }
-.dorsal-jugador { font-size: 1em; font-weight: bold; background: #333; border-radius: 50%; width: 25px; height: 25px; line-height: 25px; }
+/* src/components/CampoDeJuego.css - VERSIÓN FINAL Y ÚNICA */
+
+.campo-container {
+  width: 100%;
+  position: relative;
+  background-color: #2a2d35; /* Fondo oscuro para el contenedor */
+  border-radius: 8px;
+  overflow: hidden;
+  
+  /* 
+    LA SOLUCIÓN DIRECTA Y FINAL:
+    Una altura fija basada en la altura de la ventana.
+    Esto GARANTIZA que el campo siempre cabrá en la pantalla.
+    Puedes jugar con este valor (ej. 65vh, 75vh) para ajustarlo.
+  */
+  height: 75vh; 
+}
+
+.campo {
+  position: absolute;
+  top: 10px;    /* Margen interior */
+  left: 10px;   /* Margen interior */
+  right: 10px;  /* Margen interior */
+  bottom: 10px; /* Margen interior */
+  background-color: #28a745; /* Verde césped */
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+/* --- LÍNEAS DEL CAMPO --- */
+.linea-central {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.circulo-central {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 15%; /* Ajusta el tamaño del círculo */
+  padding-top: 15%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+}
+
+.area-grande {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  height: 18%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.area-pequena {
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  height: 8%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.area-arriba { top: 0; border-top: none; }
+.area-abajo { bottom: 0; border-bottom: none; }
+
+
+/* --- POSICIONES Y JUGADORES --- */
+.posicion-tactica {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.jugador-en-campo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #282c34;
+  color: white;
+  border-radius: 4px; /* Cuadrado */
+  width: 60px;
+  height: 60px;
+  cursor: pointer;
+  border: 2px solid #61dafb;
+  transition: transform 0.2s;
+  text-align: center;
+  overflow: hidden;
+  padding: 4px;
+}
+
+.jugador-en-campo:hover {
+  transform: scale(1.1);
+}
+
+.jugador-en-campo .dorsal {
+  font-size: 1.4em;
+  font-weight: bold;
+}
+
+.jugador-en-campo .nombre {
+  font-size: 0.8em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.posicion-vacia {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+}
+
+/* En src/components/CampoDeJuego.css */
+
+.minutos-en-campo {
+  /* Corrección: Posicionamos el contador dentro de la tarjeta */
+  position: relative; /* Lo sacamos del posicionamiento absoluto */
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  font-size: 0.75em;
+  font-weight: bold;
+  padding: 1px 6px;
+  border-radius: 5px;
+  margin-top: 4px; /* Espacio entre el nombre y los minutos */
+}

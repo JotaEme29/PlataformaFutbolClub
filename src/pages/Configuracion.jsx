@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import './Configuracion.css'; // Importamos los nuevos estilos
 
 function Configuracion() {
   const { currentUser } = useAuth();
@@ -67,7 +68,7 @@ function Configuracion() {
         
         <div className="card">
             <h2>Invitar Miembro al Cuerpo Técnico</h2>
-            <p style={{ color: '#ccc', marginTop: '-10px', marginBottom: '25px' }}>
+            <p className="config-descripcion">
                 Invita a otros entrenadores o analistas a tu equipo. Tendrán acceso de solo lectura a todas las estadísticas y datos.
             </p>
             

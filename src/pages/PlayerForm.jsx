@@ -1,7 +1,7 @@
 // src/components/PlayerForm.jsx
 
 import { useState, useEffect } from 'react';
-import '../pages/PlayerForm.css';
+import './PlayerForm.css'; // Asegúrate de que este archivo CSS exista en la misma carpeta
 
 function PlayerForm({ isOpen, onClose, onSave, jugadorExistente }) {
   const [jugador, setJugador] = useState({
@@ -45,7 +45,7 @@ function PlayerForm({ isOpen, onClose, onSave, jugadorExistente }) {
   };
 
   if (!isOpen) {
-    return null;
+    return null; // No renderizar nada si el modal no está abierto
   }
 
   return (

@@ -1,4 +1,4 @@
-// src/context/AuthContext.jsx - VERSIÓN FINAL A PRUEBA DE FALLOS
+// src/context/AuthContext.jsx - VERSIÓN FINAL, ROBUSTA Y CORREGIDA
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
@@ -30,53 +30,35 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // --- ¡¡¡NUEVA FUNCIÓN DE REGISTRO CON LÓGICA CORREGIDA!!! ---
+  // La función de signup no necesita cambios, está bien como está.
   async function signup(email, password) {
     try {
-      // PASO 1: Intentar crear el usuario en Firebase Authentication PRIMERO.
-      // Si este paso falla (ej. email ya existe), saltará al 'catch' y no continuará.
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
-      // PASO 2: Si la creación en Auth fue exitosa, procedemos con la lógica de Firestore.
       const userDocRef = doc(db, 'usuarios', user.uid);
-
-      // PASO 3: Buscar si existe una invitación para este email.
       const invitacionesRef = collection(db, 'invitaciones');
       const q = query(invitacionesRef, where('email', '==', email.toLowerCase()), limit(1));
       const invitacionSnapshot = await getDocs(q);
 
       if (!invitacionSnapshot.empty) {
-        // CASO A: SÍ HAY INVITACIÓN
         const invitacionDoc = invitacionSnapshot.docs[0];
         const datosInvitacion = invitacionDoc.data();
-
-        // Creamos el documento del usuario con los datos de la invitación.
         await setDoc(userDocRef, {
           email: user.email,
           rol: datosInvitacion.rol,
           teamId: datosInvitacion.teamId,
         });
-
-        // Borramos la invitación para que no se pueda volver a usar.
         const batch = writeBatch(db);
         batch.delete(invitacionDoc.ref);
         await batch.commit();
-
       } else {
-        // CASO B: NO HAY INVITACIÓN (comportamiento original)
-        // El nuevo usuario es administrador de su propio equipo.
         await setDoc(userDocRef, {
           email: user.email,
           rol: 'administrador',
           teamId: user.uid,
         });
       }
-      // La función termina con éxito. onAuthStateChanged se encargará de loguear al usuario.
-
     } catch (error) {
-      // Si llegamos aquí, es porque createUserWithEmailAndPassword falló.
-      // Relanzamos el error para que el componente de Registro pueda mostrar el mensaje.
       console.error("Error en el proceso de signup:", error.code, error.message);
       throw error;
     }
@@ -90,28 +72,49 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
+  // --- ¡AQUÍ ESTÁ EL CAMBIO IMPORTANTE! ---
+  // Este useEffect ahora es más robusto y no cierra la sesión si falla una lectura.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Si hay un usuario autenticado...
         const userDocRef = doc(db, 'usuarios', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setCurrentUser({ ...user, ...userDoc.data() });
-        } else {
-          // Esto puede pasar si el documento de Firestore aún no se ha creado.
-          // Damos un pequeño margen o simplemente usamos el usuario de Auth.
-          setCurrentUser(user);
+        try {
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            // CASO 1: Éxito. El usuario tiene su documento en Firestore.
+            // Combinamos los datos de Auth y Firestore en un solo objeto.
+            setCurrentUser({ ...user, ...userDoc.data() });
+          } else {
+            // CASO 2: El documento no existe. Esto es un estado inconsistente.
+            // En lugar de romper la app, lo advertimos y usamos solo los datos de Auth.
+            // La app podría no mostrar datos de equipo, pero no se quedará en blanco.
+            console.warn(`ADVERTENCIA: El usuario ${user.email} está autenticado pero no tiene un documento de datos en la colección 'usuarios'.`);
+            setCurrentUser(user);
+          }
+        } catch (error) {
+            // CASO 3: Ocurrió un error de permisos al intentar leer el documento.
+            // Esto pasaba antes. Ahora, en lugar de cerrar sesión, solo lo advertimos.
+            console.error("Error de permisos al leer el documento del usuario. La aplicación podría no funcionar correctamente. Revisa tus Reglas de Seguridad de Firestore.", error);
+            setCurrentUser(user); // Usamos solo los datos de Auth para no dejar la app en blanco.
         }
       } else {
+        // CASO 4: No hay ningún usuario autenticado.
         setCurrentUser(null);
       }
+      
+      // PASE LO QUE PASE, al final de todo, decimos que la carga ha terminado.
+      // Esto permite que el resto de la aplicación se renderice.
       setLoading(false);
     });
-    return unsubscribe;
-  }, []);
+
+    // La función de limpieza que se ejecuta cuando el componente se desmonta.
+    return () => unsubscribe();
+  }, []); // El array vacío asegura que este efecto se ejecute solo una vez al montar el componente.
 
   const value = {
     currentUser,
+    loading, // ¡NUEVO! Exponemos el estado 'loading' para que otros componentes puedan usarlo si es necesario.
     signup,
     login,
     logout,
@@ -119,6 +122,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={value}>
+      {/* La lógica de '!loading && children' se mantiene. Es correcta. */}
       {!loading && children}
     </AuthContext.Provider>
   );

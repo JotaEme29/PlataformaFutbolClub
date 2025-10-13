@@ -1,0 +1,308 @@
+/* src/pages/Eventos.css - Estilo claro inspirado en CardJugador.css */
+
+.eventos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0; /* Borde más claro */
+}
+
+.eventos-header h2 {
+  margin: 0;
+  font-size: 2.25rem; /* Ligeramente más grande */
+  color: #1a2530;
+}
+
+.filtros-eventos {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filtros-eventos .btn-crear-evento {
+  background-color: #2563eb;
+  color: white;
+  border-color: #2563eb;
+  margin-right: auto; /* Empuja los otros botones a la derecha */
+}
+
+/* Estilo de botones de filtro similar a la app */
+.filtros-eventos button {
+  background-color: #f8fafc;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filtros-eventos button:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.filtros-eventos button.active {
+  background-color: #2563eb; /* Azul principal */
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.eventos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Estilo de la tarjeta de evento */
+.card-evento {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  padding: 1.5rem;
+  text-decoration: none;
+  color: #1a2530;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-left: 5px solid var(--resultado-color, #a0aec0); /* Gris neutral */
+}
+
+.card-evento:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.card-evento-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.card-evento-header h4 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  flex-grow: 1;
+}
+
+/* Estilos para el formulario de creación de eventos */
+.card.form-container { /* Contenedor del formulario */
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.card.form-container h2 {
+  color: #1a2530;
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-crear-evento {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-crear-evento .input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-crear-evento label {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #4a5568;
+}
+
+.form-crear-evento input,
+.form-crear-evento select {
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background-color: #f8fafc;
+    color: #1a2530;
+    font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-crear-evento input:focus,
+.form-crear-evento select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+
+.form-crear-evento button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    background-color: #2563eb;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 1rem;
+    margin-top: 1rem;
+}
+
+.form-crear-evento button:hover {
+    background-color: #1d4ed8;
+}
+
+/* --- NUEVOS ESTILOS PARA EL HEADER DE LA PÁGINA DE EVENTOS --- */
+
+.eventos-pagina-header {
+  display: grid;
+  grid-template-columns: 1fr; /* Por defecto una columna (móviles) */
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+/* En pantallas más grandes, usamos dos columnas */
+@media (min-width: 900px) {
+  .eventos-pagina-header {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.card-proximo-partido {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  padding: 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.card-proximo-partido h2 {
+  margin: 0 0 1rem 0;
+  color: #1a2530;
+  font-size: 1.8rem;
+}
+
+.no-partidos-msg {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+.card-evento-link {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-decoration: none;
+  color: #1a2530;
+  background-color: #f8fafc;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-evento-link:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.proximo-partido-info h3 {
+  font-size: 2em;
+  color: #1a2530;
+  margin: 0 0 10px;
+}
+
+.proximo-partido-info .fecha {
+  font-size: 1.1em;
+  color: #4a5568;
+  margin: 0 0 10px;
+}
+
+.proximo-partido-info .condicion {
+  font-size: 1em;
+  color: #ffffff;
+  background-color: #2563eb; /* Azul principal */
+  padding: 4px 12px;
+  border-radius: 15px;
+  display: inline-block;
+  font-weight: 600;
+}
+
+.ver-detalles {
+  margin-top: 20px;
+  text-align: right;
+  font-weight: bold;
+  color: #2563eb;
+  font-size: 1.1rem;
+}
+
+/* --- ESTILOS PARA ÚLTIMOS PARTIDOS --- */
+.card-ultimos-partidos {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  padding: 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.card-ultimos-partidos h2 {
+  margin: 0 0 1rem 0;
+  color: #1a2530;
+  font-size: 1.8rem;
+}
+
+.ultimos-partidos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex-grow: 1;
+}
+
+.card-evento-mini {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.2s;
+}
+
+.card-evento-mini:hover {
+  background-color: #f1f5f9;
+}
+
+.resultado-indicador {
+  width: 6px;
+  height: 32px;
+  border-radius: 3px;
+}
+
+.info-mini {
+  flex-grow: 1;
+}
+.descripcion-mini { font-weight: 600; color: #1a2530; }
+.fecha-mini { font-size: 0.85em; color: #6b7280; display: block; }
+
+.resultado-mini {
+  font-weight: bold;
+  font-size: 1.1em;
+}

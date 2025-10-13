@@ -1,0 +1,49 @@
+/* src/pages/Dashboard.css */
+
+.dashboard-title {
+  font-size: 2.5rem;
+  color: #1a2530;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-grid-superior {
+  display: grid;
+  grid-template-columns: 1fr; /* Una columna en móviles */
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 992px) {
+  .dashboard-grid-superior {
+    grid-template-columns: 1fr 1fr; /* Dos columnas en escritorio */
+  }
+}
+
+.card-grafico {
+  display: flex;
+  flex-direction: column;
+  height: 400px; /* Altura fija para alinear los gráficos */
+  padding: 1.5rem;
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.card-grafico > canvas {
+  flex-grow: 1;
+}
+
+/* Estilo para el selector de jugador en el gráfico de evolución */
+.select-dashboard {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  color: #1a2530;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}

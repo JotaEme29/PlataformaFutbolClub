@@ -14,8 +14,8 @@ function RankingGoles({ jugadores }) {
       {
         label: 'Goles Totales',
         data: jugadoresOrdenados.map(j => j.total_goles),
-        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: 'rgba(0, 191, 255, 0.6)', // Azul eléctrico con transparencia
+        borderColor: 'rgba(0, 191, 255, 1)',     // Azul eléctrico sólido
         borderWidth: 1,
       },
     ],
@@ -30,13 +30,19 @@ function RankingGoles({ jugadores }) {
       title: {
         display: true,
         text: 'Ranking de Goleadores de la Plantilla',
-        font: { size: 18 },
-        color: '#FFFFFF'
+        font: { size: 18, weight: 'bold' },
+        color: '#e0e0e0', // Color de texto claro
+        padding: { bottom: 20 }
       },
+      legend: {
+        labels: {
+          color: '#e0e0e0' // Color de texto para la leyenda
+        }
+      }
     },
     scales: {
-      y: { beginAtZero: true, ticks: { color: '#FFFFFF' } },
-      x: { ticks: { color: '#FFFFFF' } }
+      y: { beginAtZero: true, ticks: { color: '#aaa', stepSize: 1 }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
+      x: { ticks: { color: '#aaa' }, grid: { color: 'rgba(255, 255, 255, 0.05)' } }
     }
   };
 

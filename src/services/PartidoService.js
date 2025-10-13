@@ -77,6 +77,12 @@ export const escucharAccionesEnVivo = (eventoId, callback) => {
   return unsubscribe; // Devolvemos la función para poder cerrar la conexión.
 };
 
+// ¡NUEVA FUNCIÓN!
+export const eliminarAccion = async (eventoId, accionId) => {
+  const accionRef = doc(db, 'eventos', eventoId, 'acciones_partido', accionId);
+  await deleteDoc(accionRef);
+};
+
 
 // --- FUNCIONES POST-PARTIDO ---
 
