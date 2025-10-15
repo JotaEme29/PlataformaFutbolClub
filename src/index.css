@@ -2,6 +2,10 @@
 /* ESTILOS GLOBALES Y RESET                                            */
 /* =================================================================== */
 
+/* Importar estilos específicos para la versión 2.0 */
+@import './styles/club.css';
+@import './styles/home.css';
+
 /* Configuración de la fuente y colores base para un tema claro */
 body {
   margin: 0;

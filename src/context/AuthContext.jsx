@@ -1,4 +1,4 @@
-// src/context/AuthContext.jsx - VERSIÓN FINAL, ROBUSTA Y CORREGIDA
+// src/context/AuthContext.jsx - VERSIÓN 2.0 CON SOPORTE PARA CLUBES
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
@@ -17,7 +17,8 @@ import {
   where, 
   getDocs, 
   limit,
-  writeBatch
+  writeBatch,
+  serverTimestamp
 } from 'firebase/firestore';
 
 const AuthContext = createContext();
@@ -30,7 +31,7 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // La función de signup no necesita cambios, está bien como está.
+  // Función original de signup (mantener compatibilidad con v1)
   async function signup(email, password) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -64,6 +65,66 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Nueva función para registro de clubes (v2.0)
+  async function signupClub(formData) {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
+      
+      const batch = writeBatch(db);
+      
+      // Crear documento del club
+      const clubDocRef = doc(db, 'clubes', user.uid);
+      const clubData = {
+        id: user.uid,
+        nombre: formData.nombreClub,
+        ciudad: formData.ciudad,
+        pais: formData.pais,
+        telefono: formData.telefono || '',
+        fechaCreacion: serverTimestamp(),
+        administradorId: user.uid,
+        activo: true,
+        version: '2.0',
+        configuracion: {
+          maxEquipos: 12,
+          formatosPermitidos: [5, 7, 8, 9, 11]
+        }
+      };
+      batch.set(clubDocRef, clubData);
+
+      // Crear documento del usuario administrador
+      const userDocRef = doc(db, 'usuarios', user.uid);
+      const userData = {
+        uid: user.uid,
+        email: user.email,
+        nombre: formData.nombreAdministrador,
+        apellido: formData.apellidoAdministrador,
+        rol: 'administrador_club',
+        clubId: user.uid,
+        fechaRegistro: serverTimestamp(),
+        activo: true,
+        version: '2.0'
+      };
+      batch.set(userDocRef, userData);
+
+      // Crear colección de categorías vacía para el club
+      const categoriasDocRef = doc(db, 'clubes', user.uid, 'categorias', 'placeholder');
+      batch.set(categoriasDocRef, {
+        placeholder: true,
+        fechaCreacion: serverTimestamp()
+      });
+
+      // Ejecutar todas las operaciones
+      await batch.commit();
+      
+      console.log('Club creado exitosamente:', clubData.nombre);
+      
+    } catch (error) {
+      console.error("Error en el proceso de signupClub:", error.code, error.message);
+      throw error;
+    }
+  }
+
   function login(email, password) {
     return signInWithEmailAndPassword(auth, email, password);
   }
@@ -72,57 +133,92 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
-  // --- ¡AQUÍ ESTÁ EL CAMBIO IMPORTANTE! ---
-  // Este useEffect ahora es más robusto y no cierra la sesión si falla una lectura.
+  // Función para obtener datos del club
+  async function getClubData(clubId) {
+    try {
+      const clubDocRef = doc(db, 'clubes', clubId);
+      const clubDoc = await getDoc(clubDocRef);
+      
+      if (clubDoc.exists()) {
+        return { id: clubDoc.id, ...clubDoc.data() };
+      } else {
+        console.warn(`Club con ID ${clubId} no encontrado`);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error al obtener datos del club:", error);
+      return null;
+    }
+  }
+
+  // Función para obtener equipos del club
+  async function getEquiposClub(clubId) {
+    try {
+      const equiposRef = collection(db, 'clubes', clubId, 'equipos');
+      const equiposSnapshot = await getDocs(equiposRef);
+      
+      return equiposSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error("Error al obtener equipos del club:", error);
+      return [];
+    }
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Si hay un usuario autenticado...
         const userDocRef = doc(db, 'usuarios', user.uid);
         try {
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists()) {
-            // CASO 1: Éxito. El usuario tiene su documento en Firestore.
-            // Combinamos los datos de Auth y Firestore en un solo objeto.
-            setCurrentUser({ ...user, ...userDoc.data() });
+            const userData = userDoc.data();
+            
+            // Si es un usuario v2.0 (administrador de club), obtener datos del club
+            if (userData.version === '2.0' && userData.clubId) {
+              const clubData = await getClubData(userData.clubId);
+              setCurrentUser({ 
+                ...user, 
+                ...userData, 
+                club: clubData 
+              });
+            } else {
+              // Usuario v1.0 o sin club asociado
+              setCurrentUser({ ...user, ...userData });
+            }
           } else {
-            // CASO 2: El documento no existe. Esto es un estado inconsistente.
-            // En lugar de romper la app, lo advertimos y usamos solo los datos de Auth.
-            // La app podría no mostrar datos de equipo, pero no se quedará en blanco.
             console.warn(`ADVERTENCIA: El usuario ${user.email} está autenticado pero no tiene un documento de datos en la colección 'usuarios'.`);
             setCurrentUser(user);
           }
         } catch (error) {
-            // CASO 3: Ocurrió un error de permisos al intentar leer el documento.
-            // Esto pasaba antes. Ahora, en lugar de cerrar sesión, solo lo advertimos.
-            console.error("Error de permisos al leer el documento del usuario. La aplicación podría no funcionar correctamente. Revisa tus Reglas de Seguridad de Firestore.", error);
-            setCurrentUser(user); // Usamos solo los datos de Auth para no dejar la app en blanco.
+          console.error("Error de permisos al leer el documento del usuario. La aplicación podría no funcionar correctamente. Revisa tus Reglas de Seguridad de Firestore.", error);
+          setCurrentUser(user);
         }
       } else {
-        // CASO 4: No hay ningún usuario autenticado.
         setCurrentUser(null);
       }
       
-      // PASE LO QUE PASE, al final de todo, decimos que la carga ha terminado.
-      // Esto permite que el resto de la aplicación se renderice.
       setLoading(false);
     });
 
-    // La función de limpieza que se ejecuta cuando el componente se desmonta.
     return () => unsubscribe();
-  }, []); // El array vacío asegura que este efecto se ejecute solo una vez al montar el componente.
+  }, []);
 
   const value = {
     currentUser,
-    loading, // ¡NUEVO! Exponemos el estado 'loading' para que otros componentes puedan usarlo si es necesario.
+    loading,
     signup,
+    signupClub, // Nueva función para v2.0
     login,
     logout,
+    getClubData,
+    getEquiposClub
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {/* La lógica de '!loading && children' se mantiene. Es correcta. */}
       {!loading && children}
     </AuthContext.Provider>
   );

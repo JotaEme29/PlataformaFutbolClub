@@ -1,0 +1,650 @@
+// src/components/GestionEventos.jsx - GESTIÓN DE EVENTOS Y ENTRENAMIENTOS PARA PLATAFORMA FÚTBOL 2.0
+
+import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { db } from '../firebase';
+import {
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp,
+  query,
+  where,
+  orderBy,
+  Timestamp
+} from 'firebase/firestore';
+
+function GestionEventos() {
+  const { currentUser } = useAuth();
+  const [eventos, setEventos] = useState([]);
+  const [equipos, setEquipos] = useState([]);
+  const [selectedTeam, setSelectedTeam] = useState('');
+  const [showNewEventForm, setShowNewEventForm] = useState(false);
+  const [showEventDetails, setShowEventDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('list'); // 'list', 'calendar'
+  const [filterType, setFilterType] = useState('todos'); // 'todos', 'partido', 'entrenamiento', 'reunion'
+  const [newEvent, setNewEvent] = useState({
+    titulo: '',
+    tipo: 'entrenamiento',
+    equipoId: '',
+    fecha: '',
+    hora: '',
+    duracion: 90,
+    ubicacion: '',
+    descripcion: '',
+    equipoRival: '',
+    esLocal: true,
+    objetivos: '',
+    materialNecesario: '',
+    observaciones: ''
+  });
+
+  const tiposEvento = [
+    { value: 'entrenamiento', label: '🏃‍♂️ Entrenamiento', color: '#28a745' },
+    { value: 'partido', label: '⚽ Partido', color: '#dc3545' },
+    { value: 'reunion', label: '👥 Reunión', color: '#007bff' },
+    { value: 'evento_especial', label: '🎉 Evento Especial', color: '#ffc107' }
+  ];
+
+  useEffect(() => {
+    if (currentUser?.clubId) {
+      loadData();
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (selectedTeam || filterType !== 'todos') {
+      loadEventos();
+    }
+  }, [selectedTeam, filterType]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Cargar equipos
+      const equiposRef = collection(db, 'clubes', currentUser.clubId, 'equipos');
+      const equiposSnapshot = await getDocs(equiposRef);
+      const equiposData = equiposSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setEquipos(equiposData);
+      
+      // Cargar todos los eventos inicialmente
+      await loadEventos();
+      
+    } catch (error) {
+      console.error('Error al cargar datos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadEventos = async () => {
+    try {
+      const eventosRef = collection(db, 'clubes', currentUser.clubId, 'eventos');
+      let q = query(eventosRef, orderBy('fecha', 'desc'));
+      
+      // Aplicar filtros
+      if (selectedTeam) {
+        q = query(eventosRef, where('equipoId', '==', selectedTeam), orderBy('fecha', 'desc'));
+      }
+      
+      const eventosSnapshot = await getDocs(q);
+      let eventosData = eventosSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // Filtrar por tipo si es necesario
+      if (filterType !== 'todos') {
+        eventosData = eventosData.filter(evento => evento.tipo === filterType);
+      }
+      
+      setEventos(eventosData);
+    } catch (error) {
+      console.error('Error al cargar eventos:', error);
+    }
+  };
+
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
+    
+    try {
+      const fechaHora = new Date(`${newEvent.fecha}T${newEvent.hora}`);
+      
+      const eventosRef = collection(db, 'clubes', currentUser.clubId, 'eventos');
+      await addDoc(eventosRef, {
+        ...newEvent,
+        fecha: Timestamp.fromDate(fechaHora),
+        duracion: parseInt(newEvent.duracion),
+        fechaCreacion: serverTimestamp(),
+        creadoPor: currentUser.uid,
+        estado: 'programado',
+        asistencia: [],
+        convocados: []
+      });
+
+      setNewEvent({
+        titulo: '',
+        tipo: 'entrenamiento',
+        equipoId: '',
+        fecha: '',
+        hora: '',
+        duracion: 90,
+        ubicacion: '',
+        descripcion: '',
+        equipoRival: '',
+        esLocal: true,
+        objetivos: '',
+        materialNecesario: '',
+        observaciones: ''
+      });
+      setShowNewEventForm(false);
+      loadEventos();
+    } catch (error) {
+      console.error('Error al crear evento:', error);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer.')) {
+      try {
+        const eventDocRef = doc(db, 'clubes', currentUser.clubId, 'eventos', eventId);
+        await deleteDoc(eventDocRef);
+        loadEventos();
+      } catch (error) {
+        console.error('Error al eliminar evento:', error);
+      }
+    }
+  };
+
+  const formatearFecha = (timestamp) => {
+    if (!timestamp) return 'Fecha no disponible';
+    const fecha = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return fecha.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getEquipoNombre = (equipoId) => {
+    const equipo = equipos.find(eq => eq.id === equipoId);
+    return equipo ? equipo.nombre : 'Equipo no encontrado';
+  };
+
+  const getTipoInfo = (tipo) => {
+    return tiposEvento.find(t => t.value === tipo) || { label: tipo, color: '#6c757d' };
+  };
+
+  const getEventosProximos = () => {
+    const ahora = new Date();
+    return eventos.filter(evento => {
+      const fechaEvento = evento.fecha.toDate ? evento.fecha.toDate() : new Date(evento.fecha);
+      return fechaEvento > ahora;
+    }).slice(0, 3);
+  };
+
+  if (loading) {
+    return <div className="loading">Cargando eventos...</div>;
+  }
+
+  return (
+    <div className="gestion-eventos">
+      <div className="eventos-header">
+        <h2>Gestión de Eventos y Entrenamientos</h2>
+        <div className="header-actions">
+          <button 
+            className="btn-primary"
+            onClick={() => setShowNewEventForm(true)}
+          >
+            + Nuevo Evento
+          </button>
+        </div>
+      </div>
+
+      {/* Filtros y Controles */}
+      <div className="eventos-controls">
+        <div className="filters-section">
+          <div className="filter-group">
+            <label>Equipo:</label>
+            <select
+              value={selectedTeam}
+              onChange={(e) => setSelectedTeam(e.target.value)}
+            >
+              <option value="">Todos los equipos</option>
+              {equipos.map(equipo => (
+                <option key={equipo.id} value={equipo.id}>
+                  {equipo.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="filter-group">
+            <label>Tipo:</label>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            >
+              <option value="todos">Todos los tipos</option>
+              {tiposEvento.map(tipo => (
+                <option key={tipo.value} value={tipo.value}>
+                  {tipo.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="view-controls">
+          <button 
+            className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
+            onClick={() => setViewMode('list')}
+          >
+            📋 Lista
+          </button>
+          <button 
+            className={`view-btn ${viewMode === 'calendar' ? 'active' : ''}`}
+            onClick={() => setViewMode('calendar')}
+          >
+            📅 Calendario
+          </button>
+        </div>
+      </div>
+
+      {/* Resumen de Próximos Eventos */}
+      <div className="proximos-eventos">
+        <h3>Próximos Eventos</h3>
+        <div className="eventos-proximos-grid">
+          {getEventosProximos().map(evento => {
+            const tipoInfo = getTipoInfo(evento.tipo);
+            return (
+              <div key={evento.id} className="evento-proximo-card">
+                <div 
+                  className="evento-tipo-indicator"
+                  style={{ backgroundColor: tipoInfo.color }}
+                ></div>
+                <div className="evento-info">
+                  <h4>{evento.titulo}</h4>
+                  <p className="evento-equipo">{getEquipoNombre(evento.equipoId)}</p>
+                  <p className="evento-fecha">{formatearFecha(evento.fecha)}</p>
+                  <span className="evento-tipo-badge" style={{ backgroundColor: tipoInfo.color }}>
+                    {tipoInfo.label}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+          {getEventosProximos().length === 0 && (
+            <div className="no-eventos">
+              <p>No hay eventos próximos programados</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Lista de Eventos */}
+      {viewMode === 'list' && (
+        <div className="eventos-list">
+          <h3>Todos los Eventos ({eventos.length})</h3>
+          <div className="eventos-grid">
+            {eventos.map(evento => {
+              const tipoInfo = getTipoInfo(evento.tipo);
+              return (
+                <div key={evento.id} className="evento-card">
+                  <div className="evento-header">
+                    <div className="evento-title-section">
+                      <h4>{evento.titulo}</h4>
+                      <span 
+                        className="evento-tipo-badge"
+                        style={{ backgroundColor: tipoInfo.color }}
+                      >
+                        {tipoInfo.label}
+                      </span>
+                    </div>
+                    <div className="evento-actions">
+                      <button 
+                        className="btn-small"
+                        onClick={() => setShowEventDetails(evento)}
+                      >
+                        Ver Detalles
+                      </button>
+                      <button 
+                        className="btn-small btn-danger"
+                        onClick={() => handleDeleteEvent(evento.id)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="evento-details">
+                    <p><strong>Equipo:</strong> {getEquipoNombre(evento.equipoId)}</p>
+                    <p><strong>Fecha:</strong> {formatearFecha(evento.fecha)}</p>
+                    <p><strong>Duración:</strong> {evento.duracion} minutos</p>
+                    <p><strong>Ubicación:</strong> {evento.ubicacion || 'No especificada'}</p>
+                    {evento.tipo === 'partido' && evento.equipoRival && (
+                      <p><strong>Rival:</strong> {evento.equipoRival} ({evento.esLocal ? 'Local' : 'Visitante'})</p>
+                    )}
+                    {evento.descripcion && (
+                      <p><strong>Descripción:</strong> {evento.descripcion}</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {eventos.length === 0 && (
+            <div className="empty-state">
+              <h3>No hay eventos</h3>
+              <p>Crea tu primer evento para comenzar a organizar las actividades del club.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Vista de Calendario */}
+      {viewMode === 'calendar' && (
+        <div className="calendario-view">
+          <h3>Vista de Calendario</h3>
+          <div className="calendario-placeholder">
+            <p>🚧 Vista de calendario en desarrollo</p>
+            <p>Esta funcionalidad estará disponible en la siguiente actualización.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Formulario de Nuevo Evento */}
+      {showNewEventForm && (
+        <div className="form-modal">
+          <form onSubmit={handleCreateEvent} className="new-event-form">
+            <h4>Nuevo Evento</h4>
+            
+            <div className="input-group">
+              <label>Título del Evento *</label>
+              <input
+                type="text"
+                value={newEvent.titulo}
+                onChange={(e) => setNewEvent({...newEvent, titulo: e.target.value})}
+                placeholder="Ej: Entrenamiento técnico, Partido vs Real Madrid"
+                required
+              />
+            </div>
+
+            <div className="input-row">
+              <div className="input-group">
+                <label>Tipo de Evento *</label>
+                <select
+                  value={newEvent.tipo}
+                  onChange={(e) => setNewEvent({...newEvent, tipo: e.target.value})}
+                  required
+                >
+                  {tiposEvento.map(tipo => (
+                    <option key={tipo.value} value={tipo.value}>
+                      {tipo.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="input-group">
+                <label>Equipo *</label>
+                <select
+                  value={newEvent.equipoId}
+                  onChange={(e) => setNewEvent({...newEvent, equipoId: e.target.value})}
+                  required
+                >
+                  <option value="">Seleccionar equipo</option>
+                  {equipos.map(equipo => (
+                    <option key={equipo.id} value={equipo.id}>
+                      {equipo.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="input-row">
+              <div className="input-group">
+                <label>Fecha *</label>
+                <input
+                  type="date"
+                  value={newEvent.fecha}
+                  onChange={(e) => setNewEvent({...newEvent, fecha: e.target.value})}
+                  required
+                />
+              </div>
+              
+              <div className="input-group">
+                <label>Hora *</label>
+                <input
+                  type="time"
+                  value={newEvent.hora}
+                  onChange={(e) => setNewEvent({...newEvent, hora: e.target.value})}
+                  required
+                />
+              </div>
+              
+              <div className="input-group">
+                <label>Duración (minutos) *</label>
+                <input
+                  type="number"
+                  value={newEvent.duracion}
+                  onChange={(e) => setNewEvent({...newEvent, duracion: e.target.value})}
+                  min="15"
+                  max="300"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label>Ubicación</label>
+              <input
+                type="text"
+                value={newEvent.ubicacion}
+                onChange={(e) => setNewEvent({...newEvent, ubicacion: e.target.value})}
+                placeholder="Ej: Campo de entrenamiento, Estadio Municipal"
+              />
+            </div>
+
+            {newEvent.tipo === 'partido' && (
+              <>
+                <div className="input-row">
+                  <div className="input-group">
+                    <label>Equipo Rival</label>
+                    <input
+                      type="text"
+                      value={newEvent.equipoRival}
+                      onChange={(e) => setNewEvent({...newEvent, equipoRival: e.target.value})}
+                      placeholder="Nombre del equipo rival"
+                    />
+                  </div>
+                  
+                  <div className="input-group">
+                    <label>Tipo de Partido</label>
+                    <select
+                      value={newEvent.esLocal}
+                      onChange={(e) => setNewEvent({...newEvent, esLocal: e.target.value === 'true'})}
+                    >
+                      <option value={true}>Local</option>
+                      <option value={false}>Visitante</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {newEvent.tipo === 'entrenamiento' && (
+              <>
+                <div className="input-group">
+                  <label>Objetivos del Entrenamiento</label>
+                  <textarea
+                    value={newEvent.objetivos}
+                    onChange={(e) => setNewEvent({...newEvent, objetivos: e.target.value})}
+                    placeholder="Ej: Mejorar pases cortos, trabajar jugadas a balón parado"
+                    rows="3"
+                  />
+                </div>
+                
+                <div className="input-group">
+                  <label>Material Necesario</label>
+                  <textarea
+                    value={newEvent.materialNecesario}
+                    onChange={(e) => setNewEvent({...newEvent, materialNecesario: e.target.value})}
+                    placeholder="Ej: Conos, balones, petos, porterías pequeñas"
+                    rows="2"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="input-group">
+              <label>Descripción</label>
+              <textarea
+                value={newEvent.descripcion}
+                onChange={(e) => setNewEvent({...newEvent, descripcion: e.target.value})}
+                placeholder="Descripción adicional del evento"
+                rows="3"
+              />
+            </div>
+
+            <div className="input-group">
+              <label>Observaciones</label>
+              <textarea
+                value={newEvent.observaciones}
+                onChange={(e) => setNewEvent({...newEvent, observaciones: e.target.value})}
+                placeholder="Observaciones especiales, recordatorios, etc."
+                rows="2"
+              />
+            </div>
+
+            <div className="form-actions">
+              <button type="submit" className="btn-primary">Crear Evento</button>
+              <button 
+                type="button" 
+                className="btn-secondary"
+                onClick={() => setShowNewEventForm(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal de Detalles del Evento */}
+      {showEventDetails && (
+        <div className="form-modal">
+          <div className="event-details-modal">
+            <div className="modal-header">
+              <h4>{showEventDetails.titulo}</h4>
+              <button 
+                className="close-btn"
+                onClick={() => setShowEventDetails(null)}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="detail-section">
+                <h5>Información General</h5>
+                <div className="detail-grid">
+                  <div className="detail-item">
+                    <strong>Tipo:</strong> {getTipoInfo(showEventDetails.tipo).label}
+                  </div>
+                  <div className="detail-item">
+                    <strong>Equipo:</strong> {getEquipoNombre(showEventDetails.equipoId)}
+                  </div>
+                  <div className="detail-item">
+                    <strong>Fecha:</strong> {formatearFecha(showEventDetails.fecha)}
+                  </div>
+                  <div className="detail-item">
+                    <strong>Duración:</strong> {showEventDetails.duracion} minutos
+                  </div>
+                  <div className="detail-item">
+                    <strong>Ubicación:</strong> {showEventDetails.ubicacion || 'No especificada'}
+                  </div>
+                </div>
+              </div>
+
+              {showEventDetails.tipo === 'partido' && showEventDetails.equipoRival && (
+                <div className="detail-section">
+                  <h5>Información del Partido</h5>
+                  <div className="detail-grid">
+                    <div className="detail-item">
+                      <strong>Equipo Rival:</strong> {showEventDetails.equipoRival}
+                    </div>
+                    <div className="detail-item">
+                      <strong>Tipo:</strong> {showEventDetails.esLocal ? 'Local' : 'Visitante'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showEventDetails.tipo === 'entrenamiento' && (
+                <div className="detail-section">
+                  <h5>Información del Entrenamiento</h5>
+                  {showEventDetails.objetivos && (
+                    <div className="detail-item">
+                      <strong>Objetivos:</strong>
+                      <p>{showEventDetails.objetivos}</p>
+                    </div>
+                  )}
+                  {showEventDetails.materialNecesario && (
+                    <div className="detail-item">
+                      <strong>Material Necesario:</strong>
+                      <p>{showEventDetails.materialNecesario}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {showEventDetails.descripcion && (
+                <div className="detail-section">
+                  <h5>Descripción</h5>
+                  <p>{showEventDetails.descripcion}</p>
+                </div>
+              )}
+
+              {showEventDetails.observaciones && (
+                <div className="detail-section">
+                  <h5>Observaciones</h5>
+                  <p>{showEventDetails.observaciones}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn-primary">Gestionar Convocatoria</button>
+              <button className="btn-secondary">Editar Evento</button>
+              <button 
+                className="btn-danger"
+                onClick={() => {
+                  handleDeleteEvent(showEventDetails.id);
+                  setShowEventDetails(null);
+                }}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default GestionEventos;
