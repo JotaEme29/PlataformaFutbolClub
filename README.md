@@ -8,7 +8,6 @@ Una plataforma integral de gestión para clubes de fútbol que permite administr
 - **Estructura jerárquica**: Club → Categorías → Equipos → Jugadores
 - **Múltiples formatos**: Soporte para fútbol 5, 7, 8, 9 y 11
 - **Gestión de roles**: Sistema granular de permisos y acceso
-- **Compatibilidad**: Mantiene soporte para usuarios de la versión 1.0
 
 ### 📊 Estadísticas y Análisis Avanzado
 - **Dashboard completo**: Métricas del club en tiempo real
@@ -140,13 +139,12 @@ PlataformaFutbolClub/
 ### Primer Uso
 
 1. **Acceder a la aplicación**
-2. **Seleccionar "Versión 2.0"** en la página de inicio
-3. **Registrar nuevo club** con información del administrador
-4. **Crear categorías** (ej: Sub-16, Juvenil, Senior)
-5. **Añadir equipos** con formato y entrenadores
-6. **Registrar jugadores** en cada equipo
-7. **Planificar entrenamientos** y eventos
-8. **Usar Action Logger** durante partidos para estadísticas automáticas
+2. **Registrar nuevo club** con información del administrador
+3. **Crear categorías** (ej: Sub-16, Juvenil, Senior)
+4. **Añadir equipos** con formato y entrenadores
+5. **Registrar jugadores** en cada equipo
+6. **Planificar entrenamientos** y eventos
+7. **Usar Action Logger** durante partidos para estadísticas automáticas
 
 ### Funcionalidades Clave
 
@@ -230,13 +228,6 @@ vercel
 - ✅ Estadísticas avanzadas y análisis
 - ✅ Planificación profesional de entrenamientos
 - ✅ Sistema de roles y permisos
-- ✅ Compatibilidad con versión 1.0
-
-### Versión 1.0.0
-- ✅ Gestión básica de equipos
-- ✅ Registro de jugadores
-- ✅ Eventos simples
-- ✅ Estadísticas básicas
 
 ## 🐛 Problemas Conocidos
 

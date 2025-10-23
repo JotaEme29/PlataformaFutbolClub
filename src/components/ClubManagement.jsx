@@ -334,9 +334,23 @@ function ClubManagement() {
               <h4>{categoria.nombre}</h4>
               <p>Edades: {categoria.edadMinima} - {categoria.edadMaxima} años</p>
               {categoria.descripcion && <p className="description">{categoria.descripcion}</p>}
-              <div className="category-actions">
-                <button className="btn-small" onClick={() => handleEditCategory(categoria)}>Editar</button>
-                <button className="btn-small btn-danger" onClick={() => handleDeleteCategory(categoria.id)}>Eliminar</button>
+              <div className="category-actions" style={{ display:'flex', gap:'8px', alignItems:'center' }}>
+                <button
+                  className="btn btn-icon"
+                  onClick={() => handleEditCategory(categoria)}
+                  title="Editar categoría"
+                  aria-label="Editar categoría"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                </button>
+                <button
+                  className="btn btn-icon btn-danger"
+                  onClick={() => handleDeleteCategory(categoria.id)}
+                  title="Eliminar categoría"
+                  aria-label="Eliminar categoría"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12m-9 0v-.5A1.5 1.5 0 0110.5 5h3A1.5 1.5 0 0115 6.5V7m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
+                </button>
               </div>
             </div>
           ))}
@@ -505,11 +519,21 @@ function ClubManagement() {
               <p><strong>Formato:</strong> Fútbol {equipo.formato}</p>
               <p><strong>Jugadores:</strong> {equipo.jugadores?.length || 0}/{getMaxJugadores(equipo.formato)}</p>
               {equipo.entrenador && <p><strong>Entrenador:</strong> {equipo.entrenador}</p>}
-              <div className="team-actions">
-                <button className="btn-small" onClick={() => handleEditTeam(equipo)}>Editar</button>
-                <button className="btn-small btn-danger" onClick={() => handleDeleteTeam(equipo.id)}>Eliminar</button>
-                <button className="btn-small">Gestionar</button>
-                <button className="btn-small">Estadísticas</button>
+              <div className="team-actions" style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
+                <button className="btn btn-icon" onClick={() => handleEditTeam(equipo)} title="Editar equipo" aria-label="Editar equipo">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                </button>
+                <button className="btn btn-icon btn-danger" onClick={() => handleDeleteTeam(equipo.id)} title="Eliminar equipo" aria-label="Eliminar equipo">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12m-9 0v-.5A1.5 1.5 0 0110.5 5h3A1.5 1.5 0 0115 6.5V7m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
+                </button>
+                <button className="btn btn-primary btn-small" title="Gestionar equipo">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18" style={{ marginRight: '6px' }}><path strokeLinecap="round" strokeLinejoin="round" d="M11.983 13.9a1.9 1.9 0 100-3.8 1.9 1.9 0 000 3.8z"/><path strokeLinecap="round" strokeLinejoin="round" d="M4 13.9h2.02a6.01 6.01 0 00.42 1.02l-1.43 1.43 1.414 1.414 1.43-1.43c.32.18.66.32 1.02.42V20h2v-2.02c.36-.1.7-.24 1.02-.42l1.43 1.43L16.27 17.6l-1.43-1.43c.18-.32.32-.66.42-1.02H18v-2h-2.02a6.01 6.01 0 00-.42-1.02l1.43-1.43-1.414-1.414-1.43 1.43a5.96 5.96 0 00-1.02-.42V4h-2v2.02a5.96 5.96 0 00-1.02.42l-1.43-1.43L6.01 6.42l1.43 1.43c-.18.32-.32.66-.42 1.02H4v2z"/></svg>
+                  Gestionar
+                </button>
+                <button className="btn btn-secondary btn-small" title="Estadísticas del equipo">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18" style={{ marginRight: '6px' }}><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+                  Estadísticas
+                </button>
               </div>
             </div>
           ))}

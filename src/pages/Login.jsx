@@ -16,7 +16,7 @@ function Login() {
     setError('');
     try {
       await login(email, password);
-      navigate('/dashboard'); // Redirige al dashboard tras un login exitoso
+      navigate('/dashboard-club'); // Redirige al dashboard-club tras un login exitoso
     } catch (err) {
       setError('Error al iniciar sesión. Comprueba tu email y contraseña.');
       console.error(err);
@@ -57,7 +57,7 @@ function Login() {
         <div className="auth-footer">
           <Link to="/forgot-password">¿Olvidaste tu contraseña?</Link>
           <p>
-            ¿No tienes cuenta? <Link to="/signup">Regístrate</Link>
+            ¿No tienes cuenta? <Link to="/registro-club">Regístrate</Link>
           </p>
         </div>
       </div>

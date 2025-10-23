@@ -1,8 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import './CardJugador.css'; // Importamos los nuevos estilos
+import './CardJugador.css';
 
-// Componente para un item de estadística individual
 const Stat = ({ value, label }) => (
   <div className="stat-item">
     <span className="stat-value">{value}</span>
@@ -13,7 +12,6 @@ const Stat = ({ value, label }) => (
 function CardJugador({ jugador, onEdit, onDelete }) {
   const navigate = useNavigate();
 
-  // Maneja el clic en la tarjeta, evitando la navegación si se hace clic en los botones
   const handleCardClick = (e) => {
     if (e.target.closest('.player-card-actions')) {
       return;
@@ -22,12 +20,12 @@ function CardJugador({ jugador, onEdit, onDelete }) {
   };
 
   const handleEditClick = (e) => {
-    e.stopPropagation(); // Evita que el clic se propague a la tarjeta
+    e.stopPropagation();
     onEdit(jugador);
   };
 
   const handleDeleteClick = (e) => {
-    e.stopPropagation(); // Evita que el clic se propague a la tarjeta
+    e.stopPropagation();
     onDelete(jugador.id);
   };
 
@@ -35,21 +33,20 @@ function CardJugador({ jugador, onEdit, onDelete }) {
 
   return (
     <div className="player-card" onClick={handleCardClick}>
-      {/* --- Botones de Acción --- */}
       <div className="player-card-actions">
-        <button onClick={handleEditClick} className="player-action-btn" title="Editar Jugador">✏️</button>
-        <button onClick={handleDeleteClick} className="player-action-btn" title="Eliminar Jugador">🗑️</button>
+        <button onClick={handleEditClick} className="player-action-btn btn-icon" title="Editar jugador" aria-label="Editar jugador">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+        </button>
+        <button onClick={handleDeleteClick} className="player-action-btn btn-icon" title="Eliminar jugador" aria-label="Eliminar jugador">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12m-9 0v-.5A1.5 1.5 0 0110.5 5h3A1.5 1.5 0 0115 6.5V7m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
+        </button>
       </div>
 
-      {/* --- Banner Superior con Dorsal --- */}
       <div className="player-card-banner">
         <div className="player-card-dorsal">{jugador.dorsal || '#'}</div>
       </div>
 
-      {/* --- Contenido Principal de la Tarjeta --- */}
       <div className="player-card-content">
-        
-        {/* --- Cabecera con Valoración y Nombre --- */}
         <div className="player-card-header">
           <div className="player-rating-badge">
             {valoracionGeneral}
@@ -63,7 +60,6 @@ function CardJugador({ jugador, onEdit, onDelete }) {
 
         <hr className="stats-separator" />
 
-        {/* --- Grid de Estadísticas Principales --- */}
         <div className="player-stats-grid">
           <Stat value={jugador.total_goles || 0} label="Goles" />
           <Stat value={jugador.total_asistencias || 0} label="Asist." />

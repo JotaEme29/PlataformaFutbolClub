@@ -16,6 +16,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #f4f7f9; /* Fondo gris claro y suave */
   color: #333; /* Color de texto principal oscuro */
+  overflow: hidden;
 }
 
 /* Contenedor principal de la aplicación */
@@ -50,7 +51,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Botones genéricos */
-button {
+button, .btn {
   cursor: pointer;
   border: none;
   border-radius: 8px;
@@ -63,16 +64,38 @@ button {
   transition: all 0.2s ease;
 }
 
-button:hover {
+button:hover, .btn:hover {
   background-color: #1d4ed8; /* Azul más oscuro al pasar el ratón */
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
 }
 
-button:active {
+button:active, .btn:active {
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
 }
+
+/* Variantes coherentes para toda la app */
+.btn-primary { background-color: #2563eb; color: #fff; }
+.btn-secondary { background-color: #f1f5f9; color: #4a5568; box-shadow: none; }
+.btn-secondary:hover { background-color: #e2e8f0; color: #2d3748; }
+.btn-danger { background-color: #ef4444; color: #fff; }
+.btn-danger:hover { background-color: #dc2626; }
+
+/* Tamaño pequeño para grids/tarjetas */
+.btn-small { padding: 8px 12px; font-size: 0.9em; border-radius: 6px; }
+
+/* Botón solo icono */
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+.btn-icon svg { width: 18px; height: 18px; }
 
 /* =================================================================== */
 /* BARRA DE NAVEGACIÓN (NAVBAR)                                        */

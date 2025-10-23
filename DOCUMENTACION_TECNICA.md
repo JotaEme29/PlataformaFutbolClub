@@ -195,8 +195,7 @@ users/
     ├── nombre: string
     ├── apellido: string
     ├── email: string
-    ├── clubId: string
-    ├── version: string
+    ├── clubId: string // ID del club al que pertenece
     ├── rol: string
     ├── equipoAsignado: string
     ├── permisos: array
@@ -221,8 +220,7 @@ users: ['clubId', 'rol']
 **Propósito**: Gestión global de autenticación y estado del usuario
 
 **Funciones principales**:
-- `signup()`: Registro de usuarios v1.0
-- `signupClub()`: Registro de clubes v2.0
+- `signupClub()`: Registro de clubes y administradores
 - `login()`: Autenticación
 - `logout()`: Cierre de sesión
 - `resetPassword()`: Recuperación de contraseña

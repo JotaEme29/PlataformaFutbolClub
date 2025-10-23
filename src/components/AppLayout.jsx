@@ -36,16 +36,16 @@ function AppLayout() {
         flexWrap: 'wrap' 
       }}>
         <div>
-          <Link to="/" style={navLinkStyle}>Plantilla</Link>
-          <Link to="/eventos" style={navLinkStyle}>Eventos</Link>
-          <Link to="/dashboard" style={navLinkStyle}>Dashboard</Link>
+          <Link to="/" style={navLinkStyle}>Inicio</Link>
+          <Link to="/dashboard-club" style={navLinkStyle}>Dashboard Club</Link>
+          <Link to="/gestion-roles" style={navLinkStyle}>Gestión Roles</Link>
         </div>
         <button onClick={handleLogout} style={{ background: '#c0392b', color: 'white' }}>
           Cerrar Sesión
         </button>
       </nav>
       <main>
-        <Outlet /> {/* Aquí se renderizarán las páginas (Plantilla, Eventos, etc.) */}
+        <Outlet />
       </main>
     </div>
   );

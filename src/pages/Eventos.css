@@ -1,4 +1,11 @@
-/* src/pages/Eventos.css - Estilo claro inspirado en CardJugador.css */
+/* src/pages/Eventos.css - DARK THEME REFINEMENT */
+
+:root {
+  --dark-bg: #1f2937;
+  --dark-card-bg: #374151;
+  --text-primary-dark: #f9fafb;
+  --text-secondary-dark: #9ca3af;
+}
 
 .eventos-header {
   display: flex;
@@ -6,13 +13,13 @@
   align-items: center;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #e2e8f0; /* Borde más claro */
+  border-bottom: 1px solid #4b5563; /* Borde oscuro */
 }
 
 .eventos-header h2 {
   margin: 0;
   font-size: 2.25rem; /* Ligeramente más grande */
-  color: #1a2530;
+  color: var(--text-primary-dark);
 }
 
 .filtros-eventos {
@@ -29,9 +36,9 @@
 
 /* Estilo de botones de filtro similar a la app */
 .filtros-eventos button {
-  background-color: #f8fafc;
-  color: #4a5568;
-  border: 1px solid #e2e8f0;
+  background-color: var(--dark-card-bg);
+  color: var(--text-secondary-dark);
+  border: 1px solid #4b5563;
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-weight: 600;
@@ -40,8 +47,8 @@
 }
 
 .filtros-eventos button:hover {
-  background-color: #f1f5f9;
-  border-color: #cbd5e1;
+  background-color: #4b5563;
+  border-color: #6b7280;
 }
 
 .filtros-eventos button.active {
@@ -58,13 +65,13 @@
 
 /* Estilo de la tarjeta de evento */
 .card-evento {
-  background: #ffffff;
+  background: var(--dark-card-bg);
   border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #4b5563;
   padding: 1.5rem;
   text-decoration: none;
-  color: #1a2530;
+  color: var(--text-primary-dark);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -74,7 +81,7 @@
 
 .card-evento:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
 }
 
 .card-evento-header {
@@ -92,17 +99,17 @@
 }
 
 /* Estilos para el formulario de creación de eventos */
-.card.form-container { /* Contenedor del formulario */
-  background: #ffffff;
+.card.form-container {
+  background: var(--dark-card-bg);
   border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #4b5563;
   padding: 2rem;
   margin-bottom: 2rem;
 }
 
 .card.form-container h2 {
-  color: #1a2530;
+  color: var(--text-primary-dark);
   font-size: 1.8rem;
   margin-bottom: 1.5rem;
 }
@@ -121,16 +128,16 @@
 .form-crear-evento label {
     margin-bottom: 0.5rem;
     font-weight: 600;
-    color: #4a5568;
+    color: var(--text-secondary-dark);
 }
 
 .form-crear-evento input,
 .form-crear-evento select {
     padding: 0.75rem;
     border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    background-color: #f8fafc;
-    color: #1a2530;
+    border: 1px solid #6b7280;
+    background-color: var(--dark-bg);
+    color: var(--text-primary-dark);
     font-size: 1rem;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -179,16 +186,16 @@
 .card-proximo-partido {
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
+  background-color: var(--dark-card-bg);
   padding: 1.5rem;
   border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #4b5563;
 }
 
 .card-proximo-partido h2 {
   margin: 0 0 1rem 0;
-  color: #1a2530;
+  color: var(--text-primary-dark);
   font-size: 1.8rem;
 }
 
@@ -197,7 +204,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--text-secondary-dark);
   font-size: 1.1rem;
 }
 
@@ -207,11 +214,11 @@
   flex-direction: column;
   justify-content: space-between;
   text-decoration: none;
-  color: #1a2530;
-  background-color: #f8fafc;
+  color: var(--text-primary-dark);
+  background-color: var(--dark-bg);
   padding: 1.5rem;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #4b5563;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -222,13 +229,13 @@
 
 .proximo-partido-info h3 {
   font-size: 2em;
-  color: #1a2530;
+  color: var(--text-primary-dark);
   margin: 0 0 10px;
 }
 
 .proximo-partido-info .fecha {
   font-size: 1.1em;
-  color: #4a5568;
+  color: var(--text-secondary-dark);
   margin: 0 0 10px;
 }
 
@@ -254,16 +261,16 @@
 .card-ultimos-partidos {
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
+  background-color: var(--dark-card-bg);
   padding: 1.5rem;
   border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #4b5563;
 }
 
 .card-ultimos-partidos h2 {
   margin: 0 0 1rem 0;
-  color: #1a2530;
+  color: var(--text-primary-dark);
   font-size: 1.8rem;
 }
 
@@ -279,7 +286,7 @@
   align-items: center;
   gap: 1rem;
   padding: 0.75rem;
-  background-color: #f8fafc;
+  background-color: var(--dark-bg);
   border-radius: 8px;
   text-decoration: none;
   color: inherit;
@@ -287,7 +294,7 @@
 }
 
 .card-evento-mini:hover {
-  background-color: #f1f5f9;
+  background-color: #4b5563;
 }
 
 .resultado-indicador {
@@ -299,8 +306,8 @@
 .info-mini {
   flex-grow: 1;
 }
-.descripcion-mini { font-weight: 600; color: #1a2530; }
-.fecha-mini { font-size: 0.85em; color: #6b7280; display: block; }
+.descripcion-mini { font-weight: 600; color: var(--text-primary-dark); }
+.fecha-mini { font-size: 0.85em; color: var(--text-secondary-dark); display: block; }
 
 .resultado-mini {
   font-weight: bold;

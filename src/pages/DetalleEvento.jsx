@@ -549,23 +549,27 @@ setLoading(false);
             />
             <div className="cronometro-controles">
               {fasePartido === 'preparacion' && (
-                <button onClick={() => { setFasePartido('primer_tiempo'); setCronoEnPausa(false); }} disabled={titulares.length < 11}>
-                  ▶ Iniciar 1er Tiempo
+                <button className="btn-crono-control" onClick={() => { setFasePartido('primer_tiempo'); setCronoEnPausa(false); }} disabled={titulares.length < 11}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="24" height="24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" /></svg>
+                  <span>Iniciar 1er Tiempo</span>
                 </button>
               )}
               {fasePartido === 'primer_tiempo' && (
-                <button onClick={() => { setFasePartido('descanso'); setCronoEnPausa(true); }}>
-                  ❚❚ Finalizar 1er Tiempo
+                <button className="btn-crono-control" onClick={() => { setFasePartido('descanso'); setCronoEnPausa(true); }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="24" height="24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25v13.5m-6-13.5v13.5" /></svg>
+                  <span>Finalizar 1er Tiempo</span>
                 </button>
               )}
               {fasePartido === 'descanso' && (
-                <button onClick={() => { setFasePartido('segundo_tiempo'); setCronoEnPausa(false); }}>
-                  ▶ Iniciar 2do Tiempo
+                <button className="btn-crono-control" onClick={() => { setFasePartido('segundo_tiempo'); setCronoEnPausa(false); }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="24" height="24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" /></svg>
+                  <span>Iniciar 2do Tiempo</span>
                 </button>
               )}
               {fasePartido === 'segundo_tiempo' && (
-                <button onClick={() => { setFasePartido('finalizado'); setCronoEnPausa(true); sincronizarAccionesConEvaluacion(); setVista('evaluacion'); }}>
-                  ■ Finalizar y Evaluar
+                <button className="btn-crono-control" onClick={() => { setFasePartido('finalizado'); setCronoEnPausa(true); sincronizarAccionesConEvaluacion(); setVista('evaluacion'); }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="24" height="24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z" /></svg>
+                  <span>Finalizar y Evaluar</span>
                 </button>
               )}
             </div>
@@ -633,10 +637,22 @@ setLoading(false);
                     <div className="card acciones-card">
                       <h3>Registrar Acción</h3>
                       <div className="acciones-botones">
-                        <button onClick={() => iniciarSeleccionJugador('GOL')} disabled={cronoEnPausa}>⚽ Registrar Gol</button>
-                        <button onClick={() => iniciarSeleccionJugador('ASISTENCIA')} disabled={cronoEnPausa}>🤝 Registrar Asistencia</button>
-                        <button onClick={() => iniciarSeleccionJugador('AMARILLA')} disabled={cronoEnPausa}>🟨 Tarjeta Amarilla</button>
-                        <button onClick={() => iniciarSeleccionJugador('ROJA')} disabled={cronoEnPausa}>🟥 Tarjeta Roja</button>
+                        <button onClick={() => iniciarSeleccionJugador('GOL')} disabled={cronoEnPausa}>
+                          <span className="accion-icon-vivo">⚽</span> Registrar Gol
+                        </button>
+                        <button onClick={() => iniciarSeleccionJugador('ASISTENCIA')} disabled={cronoEnPausa}>
+                          <span className="accion-icon-vivo">🤝</span> Registrar Asistencia
+                        </button>
+                        <button onClick={() => iniciarSeleccionJugador('AMARILLA')} disabled={cronoEnPausa}>
+                          <span className="tarjeta-amarilla"></span> Tarjeta Amarilla
+                        </button>
+                        <button onClick={() => iniciarSeleccionJugador('ROJA')} disabled={cronoEnPausa}>
+                          <span className="tarjeta-roja"></span> Tarjeta Roja
+                        </button>
+                        <button onClick={() => iniciarSeleccionJugador('SUSTITUCION')} disabled={cronoEnPausa}>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+                          Sustitución
+                        </button>
                       </div>
                     </div>
                   </>
@@ -648,7 +664,9 @@ setLoading(false);
                       accionesEnVivo.slice().reverse().map(accion => (
                         <div key={accion.id} className="feed-item">
                           <span>{accion.minuto}' - {accion.tipo} de {accion.nombre_jugador}</span>
-                          <button onClick={() => handleEliminarAccion(accion.id)}>X</button>
+                          <button className="btn-delete-accion" onClick={() => handleEliminarAccion(accion.id)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
                         </div>
                       ))
                     ) : (<p>Aún no se han registrado acciones.</p>)}

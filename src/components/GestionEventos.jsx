@@ -1,6 +1,7 @@
 // src/components/GestionEventos.jsx - GESTIÓN DE EVENTOS Y ENTRENAMIENTOS PARA PLATAFORMA FÚTBOL 2.0
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import {
@@ -19,6 +20,7 @@ import {
 
 function GestionEventos() {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [eventos, setEventos] = useState([]);
   const [equipos, setEquipos] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState('');
@@ -199,173 +201,55 @@ function GestionEventos() {
   }
 
   return (
-    <div className="gestion-eventos">
-      <div className="eventos-header">
+    <div>
+      <div className="info-card-modern">
         <h2>Gestión de Eventos y Entrenamientos</h2>
-        <div className="header-actions">
-          <button 
-            className="btn-primary"
-            onClick={() => setShowNewEventForm(true)}
-          >
+        <div className="actions-grid-modern">
+          <button className="action-btn-modern" onClick={() => setShowNewEventForm(true)}>
             + Nuevo Evento
           </button>
         </div>
       </div>
 
-      {/* Filtros y Controles */}
-      <div className="eventos-controls">
-        <div className="filters-section">
-          <div className="filter-group">
-            <label>Equipo:</label>
-            <select
-              value={selectedTeam}
-              onChange={(e) => setSelectedTeam(e.target.value)}
-            >
-              <option value="">Todos los equipos</option>
-              {equipos.map(equipo => (
-                <option key={equipo.id} value={equipo.id}>
-                  {equipo.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="filter-group">
-            <label>Tipo:</label>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-            >
-              <option value="todos">Todos los tipos</option>
-              {tiposEvento.map(tipo => (
-                <option key={tipo.value} value={tipo.value}>
-                  {tipo.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="view-controls">
-          <button 
-            className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
-            onClick={() => setViewMode('list')}
-          >
-            📋 Lista
-          </button>
-          <button 
-            className={`view-btn ${viewMode === 'calendar' ? 'active' : ''}`}
-            onClick={() => setViewMode('calendar')}
-          >
-            📅 Calendario
-          </button>
+      <div className="info-card-modern">
+        <div className="eventos-filters-modern">
+          <select value={selectedTeam} onChange={(e) => setSelectedTeam(e.target.value)}>
+            <option value="">Todos los equipos</option>
+            {equipos.map(equipo => (
+              <option key={equipo.id} value={equipo.id}>
+                {equipo.nombre}
+              </option>
+            ))}
+          </select>
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+            <option value="todos">Todos los tipos</option>
+            {tiposEvento.map(tipo => (
+              <option key={tipo.value} value={tipo.value}>
+                {tipo.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Resumen de Próximos Eventos */}
-      <div className="proximos-eventos">
-        <h3>Próximos Eventos</h3>
-        <div className="eventos-proximos-grid">
-          {getEventosProximos().map(evento => {
-            const tipoInfo = getTipoInfo(evento.tipo);
-            return (
-              <div key={evento.id} className="evento-proximo-card">
-                <div 
-                  className="evento-tipo-indicator"
-                  style={{ backgroundColor: tipoInfo.color }}
-                ></div>
-                <div className="evento-info">
-                  <h4>{evento.titulo}</h4>
-                  <p className="evento-equipo">{getEquipoNombre(evento.equipoId)}</p>
-                  <p className="evento-fecha">{formatearFecha(evento.fecha)}</p>
-                  <span className="evento-tipo-badge" style={{ backgroundColor: tipoInfo.color }}>
-                    {tipoInfo.label}
-                  </span>
-                </div>
+      <div className="eventos-grid-modern">
+        {eventos.map(evento => {
+          const tipoInfo = getTipoInfo(evento.tipo);
+          return (
+            <div key={evento.id} className="evento-card-modern">
+              <h4 style={{ color: tipoInfo.color }}>{evento.titulo}</h4>
+              <p><strong>Equipo:</strong> {getEquipoNombre(evento.equipoId)}</p>
+              <p><strong>Fecha:</strong> {formatearFecha(evento.fecha)}</p>
+              <p><strong>Ubicación:</strong> {evento.ubicacion || 'No especificada'}</p>
+              <div className="actions-grid-modern">
+                <button className="action-btn-modern" onClick={() => navigate(`/eventos/${evento.id}`)}>Ver detalles</button>
+                <button className="action-btn-modern" onClick={() => handleDeleteEvent(evento.id)}>Eliminar</button>
               </div>
-            );
-          })}
-          {getEventosProximos().length === 0 && (
-            <div className="no-eventos">
-              <p>No hay eventos próximos programados</p>
             </div>
-          )}
-        </div>
+          );
+        })}
       </div>
 
-      {/* Lista de Eventos */}
-      {viewMode === 'list' && (
-        <div className="eventos-list">
-          <h3>Todos los Eventos ({eventos.length})</h3>
-          <div className="eventos-grid">
-            {eventos.map(evento => {
-              const tipoInfo = getTipoInfo(evento.tipo);
-              return (
-                <div key={evento.id} className="evento-card">
-                  <div className="evento-header">
-                    <div className="evento-title-section">
-                      <h4>{evento.titulo}</h4>
-                      <span 
-                        className="evento-tipo-badge"
-                        style={{ backgroundColor: tipoInfo.color }}
-                      >
-                        {tipoInfo.label}
-                      </span>
-                    </div>
-                    <div className="evento-actions">
-                      <button 
-                        className="btn-small"
-                        onClick={() => setShowEventDetails(evento)}
-                      >
-                        Ver Detalles
-                      </button>
-                      <button 
-                        className="btn-small btn-danger"
-                        onClick={() => handleDeleteEvent(evento.id)}
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="evento-details">
-                    <p><strong>Equipo:</strong> {getEquipoNombre(evento.equipoId)}</p>
-                    <p><strong>Fecha:</strong> {formatearFecha(evento.fecha)}</p>
-                    <p><strong>Duración:</strong> {evento.duracion} minutos</p>
-                    <p><strong>Ubicación:</strong> {evento.ubicacion || 'No especificada'}</p>
-                    {evento.tipo === 'partido' && evento.equipoRival && (
-                      <p><strong>Rival:</strong> {evento.equipoRival} ({evento.esLocal ? 'Local' : 'Visitante'})</p>
-                    )}
-                    {evento.descripcion && (
-                      <p><strong>Descripción:</strong> {evento.descripcion}</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          {eventos.length === 0 && (
-            <div className="empty-state">
-              <h3>No hay eventos</h3>
-              <p>Crea tu primer evento para comenzar a organizar las actividades del club.</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Vista de Calendario */}
-      {viewMode === 'calendar' && (
-        <div className="calendario-view">
-          <h3>Vista de Calendario</h3>
-          <div className="calendario-placeholder">
-            <p>🚧 Vista de calendario en desarrollo</p>
-            <p>Esta funcionalidad estará disponible en la siguiente actualización.</p>
-          </div>
-        </div>
-      )}
-
-      {/* Formulario de Nuevo Evento */}
       {showNewEventForm && (
         <div className="form-modal">
           <form onSubmit={handleCreateEvent} className="new-event-form">
@@ -541,106 +425,6 @@ function GestionEventos() {
               </button>
             </div>
           </form>
-        </div>
-      )}
-
-      {/* Modal de Detalles del Evento */}
-      {showEventDetails && (
-        <div className="form-modal">
-          <div className="event-details-modal">
-            <div className="modal-header">
-              <h4>{showEventDetails.titulo}</h4>
-              <button 
-                className="close-btn"
-                onClick={() => setShowEventDetails(null)}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="modal-content">
-              <div className="detail-section">
-                <h5>Información General</h5>
-                <div className="detail-grid">
-                  <div className="detail-item">
-                    <strong>Tipo:</strong> {getTipoInfo(showEventDetails.tipo).label}
-                  </div>
-                  <div className="detail-item">
-                    <strong>Equipo:</strong> {getEquipoNombre(showEventDetails.equipoId)}
-                  </div>
-                  <div className="detail-item">
-                    <strong>Fecha:</strong> {formatearFecha(showEventDetails.fecha)}
-                  </div>
-                  <div className="detail-item">
-                    <strong>Duración:</strong> {showEventDetails.duracion} minutos
-                  </div>
-                  <div className="detail-item">
-                    <strong>Ubicación:</strong> {showEventDetails.ubicacion || 'No especificada'}
-                  </div>
-                </div>
-              </div>
-
-              {showEventDetails.tipo === 'partido' && showEventDetails.equipoRival && (
-                <div className="detail-section">
-                  <h5>Información del Partido</h5>
-                  <div className="detail-grid">
-                    <div className="detail-item">
-                      <strong>Equipo Rival:</strong> {showEventDetails.equipoRival}
-                    </div>
-                    <div className="detail-item">
-                      <strong>Tipo:</strong> {showEventDetails.esLocal ? 'Local' : 'Visitante'}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {showEventDetails.tipo === 'entrenamiento' && (
-                <div className="detail-section">
-                  <h5>Información del Entrenamiento</h5>
-                  {showEventDetails.objetivos && (
-                    <div className="detail-item">
-                      <strong>Objetivos:</strong>
-                      <p>{showEventDetails.objetivos}</p>
-                    </div>
-                  )}
-                  {showEventDetails.materialNecesario && (
-                    <div className="detail-item">
-                      <strong>Material Necesario:</strong>
-                      <p>{showEventDetails.materialNecesario}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {showEventDetails.descripcion && (
-                <div className="detail-section">
-                  <h5>Descripción</h5>
-                  <p>{showEventDetails.descripcion}</p>
-                </div>
-              )}
-
-              {showEventDetails.observaciones && (
-                <div className="detail-section">
-                  <h5>Observaciones</h5>
-                  <p>{showEventDetails.observaciones}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="modal-actions">
-              <button className="btn-primary">Gestionar Convocatoria</button>
-              <button className="btn-secondary">Editar Evento</button>
-              <button 
-                className="btn-danger"
-                onClick={() => {
-                  handleDeleteEvent(showEventDetails.id);
-                  setShowEventDetails(null);
-                }}
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>

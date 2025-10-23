@@ -11,6 +11,11 @@ import {
   orderBy,
   limit
 } from 'firebase/firestore';
+import RankingGoles from './RankingGoles';
+import RankingAsistencias from './RankingAsistencias';
+import RankingMinutos from './RankingMinutos';
+import RankingPromedio from './RankingPromedio';
+import GraficoEvolucion from './GraficoEvolucion';
 
 function EstadisticasAnalisis() {
   const { currentUser } = useAuth();
@@ -126,6 +131,14 @@ function EstadisticasAnalisis() {
     return equipo ? equipo.nombre : 'Equipo no encontrado';
   };
 
+  // Normaliza estructura de jugadores para componentes de ranking
+  const jugadoresNormalizados = jugadores.map(j => ({
+    ...j,
+    total_goles: (j.total_goles ?? j.estadisticas?.goles ?? 0),
+    total_asistencias: (j.total_asistencias ?? j.estadisticas?.asistencias ?? 0),
+    total_minutos_jugados: (j.total_minutos_jugados ?? j.estadisticas?.minutosJugados ?? 0),
+  }));
+
   const getTopJugadores = () => {
     return jugadores
       .sort((a, b) => (b.estadisticas?.goles || 0) - (a.estadisticas?.goles || 0))
@@ -168,125 +181,66 @@ function EstadisticasAnalisis() {
   };
 
   const renderResumenTab = () => (
-    <div className="resumen-tab">
-      {/* Estadísticas Generales del Club */}
-      <div className="stats-overview">
-        <h3>Resumen del Club</h3>
-        <div className="stats-grid">
-          <div className="stat-card primary">
-            <div className="stat-icon">🏆</div>
-            <div className="stat-content">
-              <div className="stat-value">{estadisticasClub.totalEquipos}</div>
-              <div className="stat-label">Equipos</div>
-            </div>
-          </div>
-          
-          <div className="stat-card success">
-            <div className="stat-icon">👥</div>
-            <div className="stat-content">
-              <div className="stat-value">{estadisticasClub.totalJugadores}</div>
-              <div className="stat-label">Jugadores</div>
-            </div>
-          </div>
-          
-          <div className="stat-card info">
-            <div className="stat-icon">📅</div>
-            <div className="stat-content">
-              <div className="stat-value">{estadisticasClub.totalEventos}</div>
-              <div className="stat-label">Eventos Totales</div>
-            </div>
-          </div>
-          
-          <div className="stat-card warning">
-            <div className="stat-icon">⚽</div>
-            <div className="stat-content">
-              <div className="stat-value">{estadisticasClub.partidosJugados}</div>
-              <div className="stat-label">Partidos</div>
-            </div>
-          </div>
-          
-          <div className="stat-card secondary">
-            <div className="stat-icon">🏃‍♂️</div>
-            <div className="stat-content">
-              <div className="stat-value">{estadisticasClub.entrenamientos}</div>
-              <div className="stat-label">Entrenamientos</div>
-            </div>
-          </div>
-          
-          <div className="stat-card danger">
-            <div className="stat-icon">🔜</div>
-            <div className="stat-content">
-              <div className="stat-value">{estadisticasClub.proximosEventos}</div>
-              <div className="stat-label">Próximos Eventos</div>
-            </div>
-          </div>
+    <div>
+      <h3>Resumen del Club</h3>
+      <div className="stats-grid-modern">
+        <div className="stat-card-modern">
+          <h3>{estadisticasClub.totalEquipos}</h3>
+          <p>Equipos</p>
+        </div>
+        <div className="stat-card-modern">
+          <h3>{estadisticasClub.totalJugadores}</h3>
+          <p>Jugadores</p>
+        </div>
+        <div className="stat-card-modern">
+          <h3>{estadisticasClub.totalEventos}</h3>
+          <p>Eventos Totales</p>
+        </div>
+        <div className="stat-card-modern">
+          <h3>{estadisticasClub.partidosJugados}</h3>
+          <p>Partidos</p>
+        </div>
+        <div className="stat-card-modern">
+          <h3>{estadisticasClub.entrenamientos}</h3>
+          <p>Entrenamientos</p>
+        </div>
+        <div className="stat-card-modern">
+          <h3>{estadisticasClub.proximosEventos}</h3>
+          <p>Próximos Eventos</p>
         </div>
       </div>
 
-      {/* Distribución por Equipos */}
-      <div className="equipos-distribution">
-        <h3>Distribución por Equipos</h3>
-        <div className="equipos-cards">
-          {equipos.map(equipo => (
-            <div key={equipo.id} className="equipo-stat-card">
-              <h4>{equipo.nombre}</h4>
-              <div className="equipo-details">
-                <p><strong>Formato:</strong> Fútbol {equipo.formato}</p>
-                <p><strong>Entrenador:</strong> {equipo.entrenador || 'No asignado'}</p>
-                <div className="equipo-stats">
-                  <div className="mini-stat">
-                    <span className="mini-value">{equipo.estadisticas?.partidosJugados || 0}</span>
-                    <span className="mini-label">Partidos</span>
-                  </div>
-                  <div className="mini-stat">
-                    <span className="mini-value">{equipo.estadisticas?.partidosGanados || 0}</span>
-                    <span className="mini-label">Ganados</span>
-                  </div>
-                  <div className="mini-stat">
-                    <span className="mini-value">{equipo.estadisticas?.golesAFavor || 0}</span>
-                    <span className="mini-label">Goles</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+      <h3>Distribución por Equipos</h3>
+      <div className="stats-grid-modern">
+        {equipos.map(equipo => (
+          <div key={equipo.id} className="stat-card-modern">
+            <h4>{equipo.nombre}</h4>
+            <p><strong>Formato:</strong> Fútbol {equipo.formato}</p>
+            <p><strong>Entrenador:</strong> {equipo.entrenador || 'No asignado'}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Eventos Recientes */}
-      <div className="eventos-recientes">
-        <h3>Actividad Reciente</h3>
-        <div className="eventos-timeline">
-          {getEventosRecientes().map(evento => (
-            <div key={evento.id} className="timeline-item">
-              <div className="timeline-icon">
-                {evento.tipo === 'partido' ? '⚽' : 
-                 evento.tipo === 'entrenamiento' ? '🏃‍♂️' : 
-                 evento.tipo === 'reunion' ? '👥' : '🎉'}
-              </div>
-              <div className="timeline-content">
-                <h5>{evento.titulo}</h5>
-                <p>{getEquipoNombre(evento.equipoId)}</p>
-                <span className="timeline-date">
-                  {evento.fecha?.toDate ? evento.fecha.toDate().toLocaleDateString('es-ES') : 'Fecha no disponible'}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+      <h3>Actividad Reciente</h3>
+      <div className="stats-grid-modern">
+        {getEventosRecientes().map(evento => (
+          <div key={evento.id} className="stat-card-modern">
+            <h5>{evento.titulo}</h5>
+            <p>{getEquipoNombre(evento.equipoId)}</p>
+            <span>
+              {evento.fecha?.toDate ? evento.fecha.toDate().toLocaleDateString('es-ES') : 'Fecha no disponible'}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
 
   const renderJugadoresTab = () => (
-    <div className="jugadores-tab">
-      <div className="team-selector-section">
-        <label htmlFor="team-select">Seleccionar Equipo:</label>
-        <select
-          id="team-select"
-          value={selectedTeam}
-          onChange={(e) => setSelectedTeam(e.target.value)}
-        >
+    <div>
+      <h3>Estadísticas de Jugadores</h3>
+      <div className="eventos-filters-modern">
+        <select value={selectedTeam} onChange={(e) => setSelectedTeam(e.target.value)}>
           <option value="">Selecciona un equipo</option>
           {equipos.map(equipo => (
             <option key={equipo.id} value={equipo.id}>
@@ -297,152 +251,40 @@ function EstadisticasAnalisis() {
       </div>
 
       {selectedTeam && jugadores.length > 0 && (
-        <>
-          {/* Estadísticas del Equipo */}
-          <div className="team-stats-overview">
-            <h3>Estadísticas del Equipo: {getEquipoNombre(selectedTeam)}</h3>
-            <div className="team-stats-grid">
-              <div className="team-stat-card">
-                <div className="stat-value">{jugadores.length}</div>
-                <div className="stat-label">Jugadores</div>
-              </div>
-              <div className="team-stat-card">
-                <div className="stat-value">{calcularPromedioEdad()}</div>
-                <div className="stat-label">Edad Promedio</div>
-              </div>
-              <div className="team-stat-card">
-                <div className="stat-value">
-                  {jugadores.reduce((total, j) => total + (j.estadisticas?.goles || 0), 0)}
-                </div>
-                <div className="stat-label">Goles Totales</div>
-              </div>
-              <div className="team-stat-card">
-                <div className="stat-value">
-                  {jugadores.reduce((total, j) => total + (j.estadisticas?.asistencias || 0), 0)}
-                </div>
-                <div className="stat-label">Asistencias Totales</div>
-              </div>
-            </div>
+        <div className="stats-grid-modern">
+          <div className="stat-card-modern">
+            <h3>{jugadores.length}</h3>
+            <p>Jugadores</p>
           </div>
-
-          {/* Top Goleadores */}
-          <div className="top-players-section">
-            <h3>Top Goleadores</h3>
-            <div className="players-ranking">
-              {getTopJugadores().map((jugador, index) => (
-                <div key={jugador.id} className="ranking-item">
-                  <div className="ranking-position">#{index + 1}</div>
-                  <div className="player-info">
-                    <div className="player-name">
-                      {jugador.nombre} {jugador.apellido}
-                    </div>
-                    <div className="player-position">{jugador.posicion}</div>
-                  </div>
-                  <div className="player-stats">
-                    <div className="stat-item">
-                      <span className="stat-value">{jugador.estadisticas?.goles || 0}</span>
-                      <span className="stat-label">Goles</span>
-                    </div>
-                    <div className="stat-item">
-                      <span className="stat-value">{jugador.estadisticas?.asistencias || 0}</span>
-                      <span className="stat-label">Asistencias</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="stat-card-modern">
+            <h3>{calcularPromedioEdad()}</h3>
+            <p>Edad Promedio</p>
           </div>
-
-          {/* Jugadores Más Activos */}
-          <div className="active-players-section">
-            <h3>Jugadores Más Activos</h3>
-            <div className="players-ranking">
-              {getJugadoresMasActivos().map((jugador, index) => (
-                <div key={jugador.id} className="ranking-item">
-                  <div className="ranking-position">#{index + 1}</div>
-                  <div className="player-info">
-                    <div className="player-name">
-                      {jugador.nombre} {jugador.apellido}
-                    </div>
-                    <div className="player-position">{jugador.posicion}</div>
-                  </div>
-                  <div className="player-stats">
-                    <div className="stat-item">
-                      <span className="stat-value">{jugador.estadisticas?.partidosJugados || 0}</span>
-                      <span className="stat-label">Partidos</span>
-                    </div>
-                    <div className="stat-item">
-                      <span className="stat-value">{jugador.estadisticas?.minutosJugados || 0}</span>
-                      <span className="stat-label">Minutos</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="stat-card-modern">
+            <h3>{jugadores.reduce((total, j) => total + (j.estadisticas?.goles || 0), 0)}</h3>
+            <p>Goles Totales</p>
           </div>
-
-          {/* Tabla Completa de Jugadores */}
-          <div className="players-table-section">
-            <h3>Estadísticas Completas</h3>
-            <div className="players-table">
-              <div className="table-header">
-                <div className="col-player">Jugador</div>
-                <div className="col-position">Posición</div>
-                <div className="col-games">PJ</div>
-                <div className="col-goals">Goles</div>
-                <div className="col-assists">Asist.</div>
-                <div className="col-cards">Tarjetas</div>
-                <div className="col-minutes">Minutos</div>
-              </div>
-              {jugadores.map(jugador => (
-                <div key={jugador.id} className="table-row">
-                  <div className="col-player">
-                    <div className="player-cell">
-                      <span className="player-number">#{jugador.numeroCamiseta}</span>
-                      <div className="player-details">
-                        <span className="player-name">{jugador.nombre} {jugador.apellido}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-position">{jugador.posicion}</div>
-                  <div className="col-games">{jugador.estadisticas?.partidosJugados || 0}</div>
-                  <div className="col-goals">{jugador.estadisticas?.goles || 0}</div>
-                  <div className="col-assists">{jugador.estadisticas?.asistencias || 0}</div>
-                  <div className="col-cards">
-                    <span className="yellow-cards">{jugador.estadisticas?.tarjetasAmarillas || 0}</span>
-                    <span className="red-cards">{jugador.estadisticas?.tarjetasRojas || 0}</span>
-                  </div>
-                  <div className="col-minutes">{jugador.estadisticas?.minutosJugados || 0}</div>
-                </div>
-              ))}
-            </div>
+          <div className="stat-card-modern">
+            <h3>{jugadores.reduce((total, j) => total + (j.estadisticas?.asistencias || 0), 0)}</h3>
+            <p>Asistencias Totales</p>
           </div>
-        </>
-      )}
-
-      {selectedTeam && jugadores.length === 0 && (
-        <div className="empty-state">
-          <h3>No hay jugadores registrados</h3>
-          <p>Este equipo aún no tiene jugadores registrados.</p>
         </div>
       )}
     </div>
   );
 
   const renderComparativasTab = () => (
-    <div className="comparativas-tab">
-      <div className="coming-soon">
-        <h3>🚧 Comparativas y Análisis Avanzado</h3>
-        <p>Esta sección incluirá:</p>
-        <ul>
-          <li>Comparativas entre jugadores</li>
-          <li>Análisis de rendimiento por posición</li>
-          <li>Gráficos de evolución temporal</li>
-          <li>Métricas avanzadas de rendimiento</li>
-          <li>Comparación entre equipos del club</li>
-        </ul>
-        <p>Estará disponible en la siguiente actualización.</p>
-      </div>
+    <div>
+      <h3>🚧 Comparativas y Análisis Avanzado</h3>
+      <p>Esta sección incluirá:</p>
+      <ul>
+        <li>Comparativas entre jugadores</li>
+        <li>Análisis de rendimiento por posición</li>
+        <li>Gráficos de evolución temporal</li>
+        <li>Métricas avanzadas de rendimiento</li>
+        <li>Comparación entre equipos del club</li>
+      </ul>
+      <p>Estará disponible en la siguiente actualización.</p>
     </div>
   );
 
@@ -451,43 +293,25 @@ function EstadisticasAnalisis() {
   }
 
   return (
-    <div className="estadisticas-analisis">
-      <div className="estadisticas-header">
+    <div>
+      <div className="info-card-modern">
         <h2>Estadísticas y Análisis</h2>
-        <div className="header-actions">
-          <button className="btn-secondary">📊 Exportar Reporte</button>
-          <button className="btn-primary">📈 Action Logger</button>
+        <div className="actions-grid-modern">
+            <button className={`action-btn-modern ${activeTab === 'resumen' ? 'active' : ''}`} onClick={() => setActiveTab('resumen')}>
+                Resumen General
+            </button>
+            <button className={`action-btn-modern ${activeTab === 'jugadores' ? 'active' : ''}`} onClick={() => setActiveTab('jugadores')}>
+                Estadísticas de Jugadores
+            </button>
+            <button className={`action-btn-modern ${activeTab === 'comparativas' ? 'active' : ''}`} onClick={() => setActiveTab('comparativas')}>
+                Comparativas y Análisis
+            </button>
         </div>
       </div>
 
-      {/* Navegación por Pestañas */}
-      <div className="tabs-navigation">
-        <button 
-          className={`tab-btn ${activeTab === 'resumen' ? 'active' : ''}`}
-          onClick={() => setActiveTab('resumen')}
-        >
-          📊 Resumen General
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'jugadores' ? 'active' : ''}`}
-          onClick={() => setActiveTab('jugadores')}
-        >
-          👥 Estadísticas de Jugadores
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'comparativas' ? 'active' : ''}`}
-          onClick={() => setActiveTab('comparativas')}
-        >
-          📈 Comparativas y Análisis
-        </button>
-      </div>
-
-      {/* Contenido de las Pestañas */}
-      <div className="tab-content">
-        {activeTab === 'resumen' && renderResumenTab()}
-        {activeTab === 'jugadores' && renderJugadoresTab()}
-        {activeTab === 'comparativas' && renderComparativasTab()}
-      </div>
+      {activeTab === 'resumen' && <div className="info-card-modern">{renderResumenTab()}</div>}
+      {activeTab === 'jugadores' && <div className="info-card-modern">{renderJugadoresTab()}</div>}
+      {activeTab === 'comparativas' && <div className="info-card-modern">{renderComparativasTab()}</div>}
     </div>
   );
 }

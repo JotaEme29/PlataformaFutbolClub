@@ -32,9 +32,8 @@ La **Plataforma Fútbol 2.0** es un sistema integral de gestión para clubes de 
 ### 1. Registro del Club
 
 1. **Acceder a la aplicación** en la URL proporcionada
-2. **Seleccionar "Versión 2.0"** en la página de inicio
-3. **Hacer clic en "Registrar Club"**
-4. **Completar el formulario** con la información del administrador y del club:
+2. **Hacer clic en "Registrar Club"**
+3. **Completar el formulario** con la información del administrador y del club:
    - Datos personales del administrador
    - Nombre del club
    - Ciudad y país
@@ -352,5 +351,5 @@ Para problemas técnicos o consultas adicionales:
 
 ---
 
-*Plataforma Fútbol 2.0 - Versión 1.0*  
+*Plataforma Fútbol 2.0*  
 *Desarrollado para la gestión profesional de clubes de fútbol*

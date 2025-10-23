@@ -307,14 +307,18 @@ function GestionJugadores() {
                     <span className="stat-label">Asistencias</span>
                   </div>
                 </div>
-                <div className="jugador-actions">
-                  <button className="btn-small">Editar</button>
-                  <button className="btn-small">Perfil</button>
+                <div className="jugador-actions" style={{ display:'flex', gap:'8px', alignItems:'center' }}>
+                  <button className="btn btn-icon" title="Editar jugador" aria-label="Editar jugador">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                  </button>
+                  <button className="btn btn-small" title="Ver perfil">Perfil</button>
                   <button 
-                    className="btn-small btn-danger"
+                    className="btn btn-icon btn-danger"
                     onClick={() => handleDeletePlayer(jugador.id)}
+                    title="Eliminar jugador"
+                    aria-label="Eliminar jugador"
                   >
-                    Eliminar
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12m-9 0v-.5A1.5 1.5 0 0110.5 5h3A1.5 1.5 0 0115 6.5V7m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
                   </button>
                 </div>
               </div>
