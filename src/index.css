@@ -1,4 +1,5 @@
 /* =================================================================== */
+@import './styles/theme.css';
 /* ESTILOS GLOBALES Y RESET                                            */
 /* =================================================================== */
 
@@ -9,14 +10,15 @@
 /* Configuración de la fuente y colores base para un tema claro */
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  min-height: 100vh;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Ubuntu,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f4f7f9; /* Fondo gris claro y suave */
-  color: #333; /* Color de texto principal oscuro */
-  overflow: hidden;
+  background: var(--gradient-app);
+  color: var(--color-text);
+  overflow-x: hidden;
 }
 
 /* Contenedor principal de la aplicación */
@@ -93,9 +95,18 @@ button:active, .btn:active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: var(--radius-m);
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
+.btn-icon:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); border-color: rgba(255,255,255,0.18); }
 .btn-icon svg { width: 18px; height: 18px; }
+
+/* Compact buttons in dense contexts */
+.modal-actions .btn, .evento-actions .btn { padding: 8px 12px; font-size: 0.95em; border-radius: var(--radius-s); }
+.modal-actions .btn-icon, .evento-actions .btn-icon { width: 30px; height: 30px; }
 
 /* =================================================================== */
 /* BARRA DE NAVEGACIÓN (NAVBAR)                                        */
@@ -304,4 +315,99 @@ select:focus {
   .plantilla-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* =================================================================== */
+/* THEME OVERRIDES: Dark neon sporty look (Top Eleven 2025 vibe)       */
+/* =================================================================== */
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 { color: var(--color-text); }
+
+/* Cards */
+.card {
+  background: linear-gradient(180deg, var(--color-surface) 0%, rgba(255,255,255,0.02) 100%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  color: var(--color-text);
+  box-shadow: var(--shadow-2);
+  backdrop-filter: blur(var(--glass-blur));
+}
+.card:hover { box-shadow: var(--shadow-3); border-color: rgba(255,255,255,0.16); }
+
+/* Buttons */
+button, .btn {
+  border: 1px solid transparent;
+  border-radius: var(--radius-m);
+  font-weight: 700;
+  color: #051316;
+  background: linear-gradient(180deg, var(--color-primary), #00c98f);
+  box-shadow: var(--shadow-glow-primary);
+}
+button:hover, .btn:hover { transform: translateY(-1px); box-shadow: 0 0 0 2px rgba(0,227,162,0.24), 0 12px 36px rgba(0,227,162,0.3); }
+button:active, .btn:active { transform: translateY(0); box-shadow: var(--shadow-2); }
+
+.btn-primary { background: linear-gradient(180deg, var(--color-primary), #00c98f); color: #051316; }
+.btn-secondary { background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04)); color: var(--color-text); border-color: var(--color-border); box-shadow: none; }
+.btn-secondary:hover { box-shadow: var(--shadow-2); border-color: rgba(255,255,255,0.18); }
+.btn-danger { background: linear-gradient(180deg, #ef4444, #dc2626); color: #fff; }
+.btn-danger:hover { box-shadow: 0 0 0 2px rgba(239,68,68,0.15), 0 10px 28px rgba(239,68,68,0.35); }
+.btn-small { border-radius: var(--radius-s); }
+
+/* Navbar */
+.navbar, .navbar-v2 {
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-1);
+  backdrop-filter: blur(var(--glass-blur));
+}
+.nav-links a { color: var(--color-text-muted); padding: 0.6rem 1rem; border-radius: var(--radius-s); font-weight: 600; }
+.nav-links a::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 8px; height: 2px; background: linear-gradient(90deg, var(--color-secondary), var(--color-accent)); opacity: 0; transform: scaleX(0.4); transition: opacity 0.2s ease, transform 0.2s ease; }
+.nav-links a:hover { color: var(--color-text); }
+.nav-links a:hover::after, .nav-links a.active::after { opacity: 1; transform: scaleX(1); }
+.nav-links a.active { color: var(--color-text); }
+.user-email { color: var(--color-text-muted); }
+.logout-button { background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04)); color: var(--color-text); border: 1px solid var(--color-border); }
+.logout-button:hover { box-shadow: var(--shadow-2); border-color: rgba(255,255,255,0.18); }
+
+/* Auth */
+.auth-container { background: transparent; }
+.auth-box { background: linear-gradient(180deg, var(--color-surface) 0%, rgba(255,255,255,0.02) 100%); border: 1px solid var(--color-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-2); backdrop-filter: blur(var(--glass-blur)); }
+.auth-box h2 { color: var(--color-text); }
+.auth-error { background: rgba(239,68,68,0.12); color: #fecaca; border: 1px solid rgba(239,68,68,0.3); border-radius: var(--radius-m); }
+.input-group label { color: var(--color-text-muted); font-weight: 600; }
+.input-group input, select { border: 1px solid var(--color-border); background-color: rgba(255,255,255,0.04); color: var(--color-text); border-radius: var(--radius-m); }
+.input-group input:focus, select:focus { border-color: rgba(0,230,255,0.35); box-shadow: 0 0 0 3px rgba(0,230,255,0.18); background-color: rgba(255,255,255,0.06); }
+.auth-footer { color: var(--color-text-muted); }
+.auth-footer a { color: var(--color-secondary); }
+
+/* =================================================================== */
+/* FORM CONTROLS GLOBALS                                                */
+/* =================================================================== */
+select,
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="tel"],
+input[type="date"],
+input[type="password"],
+textarea {
+  background-color: rgba(255,255,255,0.04);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-m);
+}
+
+select:focus,
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(0,230,255,0.35);
+  box-shadow: 0 0 0 3px rgba(0,230,255,0.18);
+  background-color: rgba(255,255,255,0.06);
 }

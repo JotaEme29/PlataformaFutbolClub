@@ -1,4 +1,4 @@
-// src/components/GestionJugadores.jsx - GESTIÓN DE JUGADORES PARA PLATAFORMA FÚTBOL 2.0
+﻿// src/components/GestionJugadores.jsx - GESTIÃ“N DE JUGADORES PARA PLATAFORMA FÃšTBOL 2.0
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -113,14 +113,14 @@ function GestionJugadores() {
     const maxJugadores = getMaxJugadores(selectedTeamData?.formato || 11);
     
     if (jugadores.length >= maxJugadores) {
-      alert(`Has alcanzado el límite máximo de ${maxJugadores} jugadores para este formato de equipo`);
+      alert(`Has alcanzado el lÃ­mite mÃ¡ximo de ${maxJugadores} jugadores para este formato de equipo`);
       return;
     }
 
-    // Verificar que el número de camiseta no esté ocupado
+    // Verificar que el nÃºmero de camiseta no estÃ© ocupado
     const numeroExiste = jugadores.some(j => j.numeroCamiseta === parseInt(newPlayer.numeroCamiseta));
     if (numeroExiste) {
-      alert('El número de camiseta ya está ocupado por otro jugador');
+      alert('El nÃºmero de camiseta ya estÃ¡ ocupado por otro jugador');
       return;
     }
 
@@ -175,16 +175,16 @@ function GestionJugadores() {
         estado: 'pendiente'
       });
 
-      alert('Invitación enviada exitosamente');
+      alert('InvitaciÃ³n enviada exitosamente');
       setInviteData({ email: '', rol: 'jugador', equipoId: '' });
       setShowInviteForm(false);
     } catch (error) {
-      console.error('Error al enviar invitación:', error);
+      console.error('Error al enviar invitaciÃ³n:', error);
     }
   };
 
   const handleDeletePlayer = async (playerId) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este jugador? Esta acción no se puede deshacer.')) {
+    if (window.confirm('Â¿EstÃ¡s seguro de que quieres eliminar este jugador? Esta acciÃ³n no se puede deshacer.')) {
       try {
         const playerDocRef = doc(db, 'clubes', currentUser.clubId, 'equipos', selectedTeam, 'jugadores', playerId);
         await deleteDoc(playerDocRef);
@@ -227,7 +227,7 @@ function GestionJugadores() {
   return (
     <div className="gestion-jugadores">
       <div className="jugadores-header">
-        <h2>Gestión de Jugadores</h2>
+        <h2>GestiÃ³n de Jugadores</h2>
         <div className="team-selector">
           <label htmlFor="team-select">Seleccionar Equipo:</label>
           <select
@@ -238,37 +238,12 @@ function GestionJugadores() {
             <option value="">Selecciona un equipo</option>
             {equipos.map(equipo => (
               <option key={equipo.id} value={equipo.id}>
-                {equipo.nombre} (Fútbol {equipo.formato})
+                {equipo.nombre} (FÃºtbol {equipo.formato})
               </option>
             ))}
           </select>
         </div>
-        {selectedTeam && (
-          <div className="action-buttons">
-            <button className="btn-secondary" onClick={() => setSelectedTeam('')}>Volver a equipos</button>
-          </div>
-        )}
       </div>
-
-      {!selectedTeam && (
-        <div className="teams-grid">
-          {equipos.map((equipo) => (
-            <div
-              key={equipo.id}
-              className="team-card"
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelectedTeam(equipo.id)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedTeam(equipo.id); }}
-            >
-              <h4>{equipo.nombre}</h4>
-              <p><strong>Formato:</strong> Futbol {equipo.formato}</p>
-              <p><strong>Jugadores:</strong> {equipo.jugadores?.length || 0}/{getMaxJugadores(equipo.formato)}</p>
-              {equipo.entrenador && <p><strong>Entrenador:</strong> {equipo.entrenador}</p>}
-            </div>
-          ))}
-        </div>
-      )}
 
       {selectedTeam && (
         <>
@@ -279,7 +254,7 @@ function GestionJugadores() {
                 return (
                   <div className="team-stats">
                     <h3>{team?.nombre}</h3>
-                    <p><strong>Formato:</strong> Fútbol {team?.formato}</p>
+                    <p><strong>Formato:</strong> FÃºtbol {team?.formato}</p>
                     <p><strong>Jugadores:</strong> {jugadores.length}/{getMaxJugadores(team?.formato)}</p>
                     <p><strong>Entrenador:</strong> {team?.entrenador || 'No asignado'}</p>
                   </div>
@@ -291,13 +266,13 @@ function GestionJugadores() {
                 className="btn-primary"
                 onClick={() => setShowNewPlayerForm(true)}
               >
-                + Añadir Jugador
+                + AÃ±adir Jugador
               </button>
               <button 
                 className="btn-secondary"
                 onClick={() => setShowInviteForm(true)}
               >
-                📧 Enviar Invitación
+                ðŸ“§ Enviar InvitaciÃ³n
               </button>
             </div>
           </div>
@@ -314,8 +289,8 @@ function GestionJugadores() {
                   </div>
                 </div>
                 <div className="jugador-details">
-                  <p><strong>Edad:</strong> {calcularEdad(jugador.fechaNacimiento)} años</p>
-                  <p><strong>Teléfono:</strong> {jugador.telefono || 'No especificado'}</p>
+                  <p><strong>Edad:</strong> {calcularEdad(jugador.fechaNacimiento)} aÃ±os</p>
+                  <p><strong>TelÃ©fono:</strong> {jugador.telefono || 'No especificado'}</p>
                   <p><strong>Email:</strong> {jugador.email || 'No especificado'}</p>
                 </div>
                 <div className="jugador-stats">
@@ -355,7 +330,7 @@ function GestionJugadores() {
           {jugadores.length === 0 && (
             <div className="empty-state">
               <h3>No hay jugadores registrados</h3>
-              <p>Añade jugadores a este equipo para comenzar a gestionar tu plantilla.</p>
+              <p>AÃ±ade jugadores a este equipo para comenzar a gestionar tu plantilla.</p>
             </div>
           )}
         </>
@@ -397,7 +372,7 @@ function GestionJugadores() {
                 />
               </div>
               <div className="input-group">
-                <label>Número de Camiseta *</label>
+                <label>NÃºmero de Camiseta *</label>
                 <input
                   type="number"
                   value={newPlayer.numeroCamiseta}
@@ -409,13 +384,13 @@ function GestionJugadores() {
               </div>
             </div>
             <div className="input-group">
-              <label>Posición *</label>
+              <label>PosiciÃ³n *</label>
               <select
                 value={newPlayer.posicion}
                 onChange={(e) => setNewPlayer({...newPlayer, posicion: e.target.value})}
                 required
               >
-                <option value="">Seleccionar posición</option>
+                <option value="">Seleccionar posiciÃ³n</option>
                 {posiciones.map(posicion => (
                   <option key={posicion} value={posicion}>
                     {posicion}
@@ -425,7 +400,7 @@ function GestionJugadores() {
             </div>
             <div className="input-row">
               <div className="input-group">
-                <label>Teléfono</label>
+                <label>TelÃ©fono</label>
                 <input
                   type="tel"
                   value={newPlayer.telefono}
@@ -442,7 +417,7 @@ function GestionJugadores() {
               </div>
             </div>
             <div className="input-group">
-              <label>Dirección</label>
+              <label>DirecciÃ³n</label>
               <input
                 type="text"
                 value={newPlayer.direccion}
@@ -460,7 +435,7 @@ function GestionJugadores() {
                 />
               </div>
               <div className="input-group">
-                <label>Teléfono de Emergencia</label>
+                <label>TelÃ©fono de Emergencia</label>
                 <input
                   type="tel"
                   value={newPlayer.telefonoEmergencia}
@@ -469,7 +444,7 @@ function GestionJugadores() {
               </div>
             </div>
             <div className="form-actions">
-              <button type="submit" className="btn-primary">Añadir Jugador</button>
+              <button type="submit" className="btn-primary">AÃ±adir Jugador</button>
               <button 
                 type="button" 
                 className="btn-secondary"
@@ -482,11 +457,11 @@ function GestionJugadores() {
         </div>
       )}
 
-      {/* Formulario de Invitación */}
+      {/* Formulario de InvitaciÃ³n */}
       {showInviteForm && (
         <div className="form-modal">
           <form onSubmit={handleSendInvite} className="invite-form">
-            <h4>Enviar Invitación</h4>
+            <h4>Enviar InvitaciÃ³n</h4>
             <div className="input-group">
               <label>Email del Invitado *</label>
               <input
@@ -528,7 +503,7 @@ function GestionJugadores() {
               </div>
             )}
             <div className="form-actions">
-              <button type="submit" className="btn-primary">Enviar Invitación</button>
+              <button type="submit" className="btn-primary">Enviar InvitaciÃ³n</button>
               <button 
                 type="button" 
                 className="btn-secondary"

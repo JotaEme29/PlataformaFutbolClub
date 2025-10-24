@@ -16,11 +16,7 @@
   border-bottom: 1px solid #4b5563; /* Borde oscuro */
 }
 
-.eventos-header h2 {
-  margin: 0;
-  font-size: 2.25rem; /* Ligeramente más grande */
-  color: var(--text-primary-dark);
-}
+.eventos-header h2 { margin: 0; font-size: 2.25rem; color: var(--color-text); }
 
 .filtros-eventos {
   display: flex;
@@ -28,28 +24,20 @@
 }
 
 .filtros-eventos .btn-crear-evento {
-  background-color: #2563eb;
-  color: white;
-  border-color: #2563eb;
   margin-right: auto; /* Empuja los otros botones a la derecha */
+  background: linear-gradient(180deg, var(--color-primary), #00c98f);
+  color: #051316;
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-glow-primary);
+  padding: 0.55rem 1.1rem;
+  border-radius: 10px;
+  font-weight: 800;
 }
 
 /* Estilo de botones de filtro similar a la app */
-.filtros-eventos button {
-  background-color: var(--dark-card-bg);
-  color: var(--text-secondary-dark);
-  border: 1px solid #4b5563;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
+.filtros-eventos button { background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04)); color: var(--color-text); border: 1px solid var(--color-border); padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
 
-.filtros-eventos button:hover {
-  background-color: #4b5563;
-  border-color: #6b7280;
-}
+.filtros-eventos button:hover { box-shadow: var(--shadow-2); border-color: rgba(255,255,255,0.18); }
 
 .filtros-eventos button.active {
   background-color: #2563eb; /* Azul principal */
@@ -64,25 +52,9 @@
 }
 
 /* Estilo de la tarjeta de evento */
-.card-evento {
-  background: var(--dark-card-bg);
-  border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-  border: 1px solid #4b5563;
-  padding: 1.5rem;
-  text-decoration: none;
-  color: var(--text-primary-dark);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  border-left: 5px solid var(--resultado-color, #a0aec0); /* Gris neutral */
-}
+.card-evento { background: linear-gradient(180deg, var(--color-surface) 0%, rgba(255,255,255,0.02) 100%); border-radius: var(--radius-l); box-shadow: var(--shadow-2); border: 1px solid var(--color-border); padding: 1.5rem; text-decoration: none; color: var(--color-text); display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.2s ease, box-shadow 0.2s ease; border-left: 5px solid var(--resultado-color, rgba(255,255,255,0.18)); backdrop-filter: blur(var(--glass-blur)); }
 
-.card-evento:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
-}
+.card-evento:hover { transform: translateY(-5px); box-shadow: var(--shadow-3); border-color: rgba(255,255,255,0.16); }
 
 .card-evento-header {
   display: flex;
@@ -99,14 +71,7 @@
 }
 
 /* Estilos para el formulario de creación de eventos */
-.card.form-container {
-  background: var(--dark-card-bg);
-  border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-  border: 1px solid #4b5563;
-  padding: 2rem;
-  margin-bottom: 2rem;
-}
+.card.form-container { background: linear-gradient(180deg, var(--color-surface) 0%, rgba(255,255,255,0.02) 100%); border-radius: var(--radius-xl); box-shadow: var(--shadow-2); border: 1px solid var(--color-border); padding: 2rem; margin-bottom: 2rem; color: var(--color-text); backdrop-filter: blur(var(--glass-blur)); }
 
 .card.form-container h2 {
   color: var(--text-primary-dark);
@@ -132,22 +97,10 @@
 }
 
 .form-crear-evento input,
-.form-crear-evento select {
-    padding: 0.75rem;
-    border-radius: 8px;
-    border: 1px solid #6b7280;
-    background-color: var(--dark-bg);
-    color: var(--text-primary-dark);
-    font-size: 1rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
+.form-crear-evento select { padding: 0.75rem; border-radius: var(--radius-m); border: 1px solid var(--color-border); background-color: rgba(255,255,255,0.04); color: var(--color-text); font-size: 1rem; transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s; }
 
 .form-crear-evento input:focus,
-.form-crear-evento select:focus {
-  outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
-}
+.form-crear-evento select:focus { outline: none; border-color: rgba(0,230,255,0.35); box-shadow: 0 0 0 3px rgba(0,230,255,0.18); background-color: rgba(255,255,255,0.06); }
 
 
 .form-crear-evento button {
@@ -208,19 +161,7 @@
   font-size: 1.1rem;
 }
 
-.card-evento-link {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  text-decoration: none;
-  color: var(--text-primary-dark);
-  background-color: var(--dark-bg);
-  padding: 1.5rem;
-  border-radius: 12px;
-  border: 1px solid #4b5563;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
+.card-evento-link { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; text-decoration: none; color: var(--color-text); background: rgba(255,255,255,0.04); padding: 1.5rem; border-radius: var(--radius-m); border: 1px solid var(--color-border); transition: transform 0.2s ease, box-shadow 0.2s ease; }
 
 .card-evento-link:hover {
   transform: translateY(-5px);
@@ -239,34 +180,12 @@
   margin: 0 0 10px;
 }
 
-.proximo-partido-info .condicion {
-  font-size: 1em;
-  color: #ffffff;
-  background-color: #2563eb; /* Azul principal */
-  padding: 4px 12px;
-  border-radius: 15px;
-  display: inline-block;
-  font-weight: 600;
-}
+.proximo-partido-info .condicion { font-size: 1em; color: #051316; background: linear-gradient(180deg, var(--color-primary), #00c98f); padding: 4px 12px; border-radius: 15px; display: inline-block; font-weight: 700; }
 
-.ver-detalles {
-  margin-top: 20px;
-  text-align: right;
-  font-weight: bold;
-  color: #2563eb;
-  font-size: 1.1rem;
-}
+.ver-detalles { margin-top: 20px; text-align: right; font-weight: bold; color: var(--color-secondary); font-size: 1.1rem; }
 
 /* --- ESTILOS PARA ÚLTIMOS PARTIDOS --- */
-.card-ultimos-partidos {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--dark-card-bg);
-  padding: 1.5rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-  border: 1px solid #4b5563;
-}
+.card-ultimos-partidos { display: flex; flex-direction: column; background: linear-gradient(180deg, var(--color-surface) 0%, rgba(255,255,255,0.02) 100%); padding: 1.5rem; border-radius: var(--radius-l); box-shadow: var(--shadow-2); border: 1px solid var(--color-border); backdrop-filter: blur(var(--glass-blur)); }
 
 .card-ultimos-partidos h2 {
   margin: 0 0 1rem 0;
@@ -313,3 +232,5 @@
   font-weight: bold;
   font-size: 1.1em;
 }
+
+

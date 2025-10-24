@@ -8,12 +8,12 @@
   width: 100%;
   position: relative;
   text-align: center;
-  color: white;
+  color: var(--color-text);
   overflow: hidden;
   
   /* --- ¡LA PARTE CLAVE! --- */
   /* Reemplaza esta URL por una imagen de alta calidad de un estadio o campo */
-  background: url('https://images.unsplash.com/photo-1551958214-2d5b2df42a89?q=80&w=2070&auto=format&fit=crop') no-repeat center center/cover;
+  background: var(--gradient-app);
 }
 
 .home-overlay {
@@ -23,7 +23,7 @@
   right: 0;
   bottom: 0;
   background: rgba(10, 20, 30, 0.7); /* Superposición oscura para contraste */
-  backdrop-filter: blur(3px); /* Efecto de desenfoque sutil */
+  backdrop-filter: blur(4px);
 }
 
 .home-content {
@@ -112,3 +112,7 @@
     font-size: 2.5rem;
   }
 }
+
+/* Theme overrides for Home */
+.home-overlay { background: linear-gradient(180deg, rgba(3,10,22,0.55), rgba(3,10,22,0.25)); }
+.home-title { text-shadow: 0 0 18px rgba(0, 227, 162, 0.45); }

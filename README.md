@@ -45,7 +45,7 @@ Una plataforma integral de gestión para clubes de fútbol que permite administr
 
 ### 1. Clonar el Repositorio
 ```bash
-git clone https://github.com/tu-usuario/PlataformaFutbolClub.git
+git clone https://github.com/JotaEme29/PlataformaFutbolClub.git
 cd PlataformaFutbolClub
 ```
 
@@ -238,7 +238,7 @@ vercel
 ## 📞 Soporte
 
 Para problemas técnicos o consultas:
-- **Issues**: [GitHub Issues](https://github.com/tu-usuario/PlataformaFutbolClub/issues)
+- **Issues**: [GitHub Issues](https://github.com/JotaEme29/PlataformaFutbolClub/issues)
 - **Email**: soporte@plataformafutbol.com
 - **Documentación**: Ver archivos de documentación incluidos
 

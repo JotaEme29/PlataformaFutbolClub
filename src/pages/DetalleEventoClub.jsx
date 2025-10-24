@@ -59,7 +59,11 @@ function DetalleEventoClub() {
         if (!snap.exists()) {
           setError('Evento no encontrado.');
         } else {
-          setEvento({ id: snap.id, ...snap.data() });
+          const data = { id: snap.id, ...snap.data() };
+          setEvento(data);
+          if (data.evaluado) {
+            setActiveTab('evaluacion');
+          }
         }
       } catch (e) {
         console.error('Error cargando evento:', e);
@@ -367,6 +371,9 @@ function DetalleEventoClub() {
           ...vals
         });
       }
+      // Marcar evento como evaluado para bloquear futuras convocatorias
+      await updateDoc(doc(db, 'clubes', currentUser.clubId, 'eventos', eventoId), { evaluado: true });
+      setEvento(prev => ({ ...prev, evaluado: true }));
       alert('Evaluaciones guardadas');
     } catch (e) {
       console.error(e);
@@ -399,8 +406,10 @@ function DetalleEventoClub() {
       {/* Tabs */}
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button onClick={() => setActiveTab('convocatoria')} className={activeTab==='convocatoria' ? 'active' : ''}>Convocatoria</button>
-          <button onClick={() => setActiveTab('alineacion')} className={activeTab==='alineacion' ? 'active' : ''}>Alineación</button>
+          {!(evento?.evaluado) && (<>
+            <button onClick={() => setActiveTab('convocatoria')} className={activeTab==='convocatoria' ? 'active' : ''}>Convocatoria</button>
+            <button onClick={() => setActiveTab('alineacion')} className={activeTab==='alineacion' ? 'active' : ''}>Alineación</button>
+          </>)}
           <button onClick={() => setActiveTab('envivo')} className={activeTab==='envivo' ? 'active' : ''}>En vivo</button>
           <button onClick={() => setActiveTab('evaluacion')} className={activeTab==='evaluacion' ? 'active' : ''}>Evaluación</button>
           <Link to="/dashboard-club" style={{ marginLeft: 'auto' }}><button>Volver</button></Link>
@@ -408,7 +417,7 @@ function DetalleEventoClub() {
       </div>
 
       {/* Convocatoria */}
-      {activeTab === 'convocatoria' && (
+      {activeTab === 'convocatoria' && !evento?.evaluado && (
         <div className="card">
           <h3>Convocatoria</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

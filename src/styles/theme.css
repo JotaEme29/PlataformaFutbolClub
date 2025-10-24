@@ -1,0 +1,59 @@
+/* src/styles/theme.css - Design tokens and base dark theme */
+
+:root {
+  /* Core palette */
+  --color-bg: #0b1020;           /* Deep navy */
+  --color-bg-2: #0a1424;         /* Slightly lighter */
+  --color-elevated: #0f1a2b;     /* Elevated base */
+  --color-surface: rgba(255,255,255,0.06);
+  --color-surface-2: rgba(255,255,255,0.08);
+  --color-border: rgba(255,255,255,0.10);
+
+  /* Brand and accents (Top Eleven-like neon vibe) */
+  --color-primary: #00e3a2;      /* Neon teal */
+  --color-secondary: #00e6ff;    /* Electric cyan */
+  --color-accent: #8b5cf6;       /* Electric purple */
+  --color-warning: #f59e0b;      /* Amber */
+  --color-danger: #ef4444;       /* Soft red */
+
+  /* Typography */
+  --color-text: #e5eaf2;
+  --color-text-muted: #94a3b8;
+
+  /* Radii */
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Shadows and effects */
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-2: 0 6px 16px rgba(2,6,23,0.5);
+  --shadow-3: 0 10px 30px rgba(2,6,23,0.6);
+  --shadow-glow-primary: 0 0 0 2px rgba(0,227,162,0.22), 0 8px 24px rgba(0,227,162,0.28);
+  --shadow-glow-cyan: 0 0 0 2px rgba(0,230,255,0.18), 0 8px 24px rgba(0,230,255,0.24);
+  --glass-blur: 10px;
+
+  /* App gradient background */
+  --gradient-app:
+    radial-gradient(1200px 600px at 110% -20%, rgba(0,230,255,0.12), transparent 60%),
+    radial-gradient(900px 550px at -10% 120%, rgba(139,92,246,0.14), transparent 70%),
+    linear-gradient(180deg, #0b1020 0%, #0a1424 100%);
+}
+
+/* Base app background helper (optional) */
+.app-bg {
+  background: var(--gradient-app);
+}
+

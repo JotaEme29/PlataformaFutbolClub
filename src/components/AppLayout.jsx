@@ -1,7 +1,8 @@
 // src/components/AppLayout.jsx
 
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import './AppLayout.css'; // Importar los nuevos estilos
 
 function AppLayout() {
   const { logout } = useAuth();
@@ -16,35 +17,25 @@ function AppLayout() {
     }
   };
 
-  const navLinkStyle = {
-    color: 'white',
-    textDecoration: 'none',
-    padding: '10px 15px',
-    borderRadius: '5px',
-  };
-
   return (
     <div className="app-container">
-      <nav style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        background: '#333742', 
-        padding: '10px', 
-        borderRadius: '8px', 
-        marginBottom: '20px', 
-        flexWrap: 'wrap' 
-      }}>
-        <div>
-          <Link to="/" style={navLinkStyle}>Inicio</Link>
-          <Link to="/dashboard-club" style={navLinkStyle}>Dashboard Club</Link>
-          <Link to="/gestion-roles" style={navLinkStyle}>Gestión Roles</Link>
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <h1 className="logo">FutbolClub</h1>
         </div>
-        <button onClick={handleLogout} style={{ background: '#c0392b', color: 'white' }}>
+        <nav className="sidebar-nav">
+          <h2 className="sidebar-section-title">General</h2>
+          <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>🏠 Inicio</NavLink>
+          
+          <h2 className="sidebar-section-title">Club</h2>
+          <NavLink to="/dashboard-club" className={({ isActive }) => isActive ? 'active' : ''}>⚽ Dashboard Club</NavLink>
+          <NavLink to="/gestion-roles" className={({ isActive }) => isActive ? 'active' : ''}>👥 Gestión Roles</NavLink>
+        </nav>
+        <button onClick={handleLogout} className="logout-button">
           Cerrar Sesión
         </button>
-      </nav>
-      <main>
+      </aside>
+      <main className="main-content">
         <Outlet />
       </main>
     </div>
