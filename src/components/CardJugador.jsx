@@ -1,75 +1,94 @@
-﻿import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import './CardJugador.css';
+import React from 'react';
+import { FaEdit, FaTrashAlt, FaFutbol, FaRunning, FaStar, FaHandshake, FaRegCalendarCheck, FaChartLine } from 'react-icons/fa';
+import { motion } from 'framer-motion';
 
-const Stat = ({ value, label }) => (
-  <div className="stat-item">
-    <span className="stat-value">{value}</span>
-    <span className="stat-label">{label}</span>
-  </div>
-);
+const calcularEdad = (fechaNacimiento) => {
+  if (!fechaNacimiento) return '?';
+  const hoy = new Date();
+  const cumple = new Date(fechaNacimiento);
+  let edad = hoy.getFullYear() - cumple.getFullYear();
+  const m = hoy.getMonth() - cumple.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) {
+    edad--;
+  }
+  return edad;
+};
 
-function CardJugador({ jugador, onEdit, onDelete }) {
-  const navigate = useNavigate();
+const CardJugador = ({ jugador, onEdit, onDelete, onVerGrafico }) => {
+  const edad = calcularEdad(jugador.fecha_nacimiento?.toDate());
 
-  const handleCardClick = (e) => {
-    if (e.target.closest('.player-card-actions')) {
-      return;
-    }
-    navigate(`/jugador/${jugador.id}`);
-  };
-
-  const handleEditClick = (e) => {
-    e.stopPropagation();
-    onEdit(jugador);
-  };
-
-  const handleDeleteClick = (e) => {
-    e.stopPropagation();
-    onDelete(jugador.id);
-  };
-
-  const valoracionGeneral = Math.round(jugador.valoracion_general_promedio || 0);
+  // --- ¡NUEVO! ---
+  // Calculamos la valoración media. Si no hay partidos, la valoración es 0.
+  const valoracionMedia = (jugador.partidos_jugados > 0)
+    ? (jugador.suma_valoraciones / jugador.partidos_jugados).toFixed(1)
+    : 'N/A';
 
   return (
-    <div className="player-card" onClick={handleCardClick}>
-      <div className="player-card-actions">
-        <button onClick={handleEditClick} className="player-action-btn btn-icon" title="Editar jugador" aria-label="Editar jugador">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
-        </button>
-        <button onClick={handleDeleteClick} className="player-action-btn btn-icon" title="Eliminar jugador" aria-label="Eliminar jugador">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12m-9 0v-.5A1.5 1.5 0 0110.5 5h3A1.5 1.5 0 0115 6.5V7m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
-        </button>
-      </div>
-
-      <div className="player-card-banner">
-        <div className="player-card-dorsal">{jugador.dorsal || '#'}</div>
-      </div>
-
-      <div className="player-card-content">
-        <div className="player-card-header">
-          <div className="player-rating-badge">
-            {valoracionGeneral}
-            <span>VAL</span>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-1">
+      <div className="p-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">{jugador.apodo || `${jugador.nombre} ${jugador.apellidos || ''}`}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{jugador.posicion}</p>
           </div>
-          <div className="player-info">
-            <h3 className="player-name">{jugador.nombre} {jugador.apellidos}</h3>
-            <p className="player-position">{jugador.posicion || 'Sin posición'}</p>
+          <div className="text-3xl font-black text-gray-300 dark:text-gray-600">
+            {jugador.numero_camiseta || '#'}
           </div>
         </div>
-
-        <hr className="stats-separator" />
-
-        <div className="player-stats-grid">
-          <Stat value={jugador.total_goles || 0} label="Goles" />
-          <Stat value={jugador.total_asistencias || 0} label="Asist." />
-          <Stat value={jugador.total_minutos_jugados || 0} label="Minutos" />
-          <Stat value={jugador.total_convocatorias || 0} label="Convoc." />
-        </div>
-
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{jugador.equipoNombre}</p>
       </div>
+
+      {/* Estadísticas */}
+      <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 border-t border-b border-gray-200 dark:border-gray-700">
+        <button onClick={() => onVerGrafico(jugador)} className="w-full flex flex-col items-center justify-center text-center mb-3 group hover:scale-105 transition-transform">
+          <div className="relative">
+            <div className="flex items-center justify-center gap-1">
+              <FaStar className="text-amber-400 text-2xl mb-1" />
+              <span className="text-4xl font-black text-amber-500 dark:text-amber-400">{valoracionMedia}</span>
+            </div>
+            <FaChartLine className="absolute -right-5 top-1/2 -translate-y-1/2 text-gray-300 dark:text-gray-600 group-hover:text-amber-500 transition-colors" />
+          </div>
+          <span className="stat-label font-semibold mt-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Valoración Media</span>
+        </button>
+        <div className="grid grid-cols-3 gap-2 text-center border-t border-gray-200 dark:border-gray-600 pt-3">
+          <div className="stat-item">
+            <FaRegCalendarCheck className="stat-icon text-gray-400" />
+            <span className="stat-value">{jugador.partidos_jugados || 0}</span>
+            <span className="stat-label">Partidos</span>
+          </div>
+          <div className="stat-item">
+            <FaRunning className="stat-icon text-gray-400" />
+            <span className="stat-value">{jugador.minutos_jugados || 0}'</span>
+            <span className="stat-label">Minutos</span>
+          </div>
+          <div className="stat-item">
+            <FaFutbol className="stat-icon text-gray-400" />
+            <span className="stat-value">{jugador.total_goles || 0}</span>
+            <span className="stat-label">Goles</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Acciones */}
+      <div className="p-3 flex justify-end gap-2 bg-gray-50 dark:bg-gray-800">
+        <button onClick={() => onEdit(jugador)} className="btn-card-action text-blue-600 hover:bg-blue-100 dark:hover:bg-gray-700">
+          <FaEdit />
+        </button>
+        <button onClick={() => onDelete(jugador.id)} className="btn-card-action text-red-600 hover:bg-red-100 dark:hover:bg-gray-700">
+          <FaTrashAlt />
+        </button>
+      </div>
+      <style>{`
+        .stat-item-main { display: flex; flex-direction: column; align-items: center; }
+        .stat-item { display: flex; flex-direction: column; align-items: center; }
+        .stat-icon { font-size: 1.1rem; margin-bottom: 2px; }
+        .stat-value { font-size: 1rem; font-weight: 700; line-height: 1.2; }
+        .stat-label { font-size: 0.65rem; text-transform: uppercase; color: #6b7280; }
+        .dark .stat-label { color: #9ca3af; }
+        .btn-card-action { padding: 0.5rem; border-radius: 50%; transition: background-color 0.2s; }
+      `}</style>
     </div>
   );
-}
+};
 
 export default CardJugador;

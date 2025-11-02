@@ -1,6 +1,5 @@
-// src/components/EstadisticasAnalisis.jsx - SISTEMA DE ESTADÍSTICAS Y ANÁLISIS PARA PLATAFORMA FÚTBOL 2.0
-
-import { useState, useEffect } from 'react';
+// src/components/EstadisticasAnalisis.jsx - Modern Stats & Analysis System
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import {
@@ -11,6 +10,14 @@ import {
   orderBy,
   limit
 } from 'firebase/firestore';
+import { 
+  FaUsers, 
+  FaFutbol, 
+  FaClock, 
+  FaChartLine,
+  FaTrophy,
+  FaRegCalendarCheck
+} from 'react-icons/fa';
 import RankingGoles from './RankingGoles';
 import RankingAsistencias from './RankingAsistencias';
 import RankingMinutos from './RankingMinutos';
@@ -23,7 +30,12 @@ function EstadisticasAnalisis() {
   const [selectedTeam, setSelectedTeam] = useState('');
   const [jugadores, setJugadores] = useState([]);
   const [eventos, setEventos] = useState([]);
-  const [estadisticasClub, setEstadisticasClub] = useState({});
+  const [estadisticasClub, setEstadisticasClub] = useState({
+    totalEquipos: 0,
+    totalJugadores: 0,
+    promedioEdad: 0,
+    eventosUltimoMes: 0
+  });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('resumen');
 
@@ -33,61 +45,7 @@ function EstadisticasAnalisis() {
     }
   }, [currentUser]);
 
-  useEffect(() => {
-    if (selectedTeam && equipos.length > 0) {
-      loadTeamData();
-    }
-  }, [selectedTeam, equipos]);
-
-  const loadAllData = async () => {
-    try {
-      setLoading(true);
-      
-      // Cargar equipos
-      const equiposRef = collection(db, 'clubes', currentUser.clubId, 'equipos');
-      const equiposSnapshot = await getDocs(equiposRef);
-      const equiposData = equiposSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setEquipos(equiposData);
-
-      // Cargar eventos
-      const eventosRef = collection(db, 'clubes', currentUser.clubId, 'eventos');
-      const eventosSnapshot = await getDocs(eventosRef);
-      const eventosData = eventosSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setEventos(eventosData);
-
-      // Calcular estadísticas del club
-      await calcularEstadisticasClub(equiposData, eventosData);
-      
-    } catch (error) {
-      console.error('Error al cargar datos:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadTeamData = async () => {
-    try {
-      // Cargar jugadores del equipo seleccionado
-      const jugadoresRef = collection(db, 'clubes', currentUser.clubId, 'equipos', selectedTeam, 'jugadores');
-      const q = query(jugadoresRef, orderBy('numeroCamiseta', 'asc'));
-      const jugadoresSnapshot = await getDocs(q);
-      const jugadoresData = jugadoresSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setJugadores(jugadoresData);
-    } catch (error) {
-      console.error('Error al cargar jugadores:', error);
-    }
-  };
-
-  const calcularEstadisticasClub = async (equiposData, eventosData) => {
+  const calcularEstadisticasClub = useCallback(async (equiposData, eventosData) => {
     const stats = {
       totalEquipos: equiposData.length,
       totalJugadores: 0,
@@ -97,34 +55,66 @@ function EstadisticasAnalisis() {
       proximosEventos: 0
     };
 
-    // Contar jugadores por equipo
     for (const equipo of equiposData) {
-      try {
-        const jugadoresRef = collection(db, 'clubes', currentUser.clubId, 'equipos', equipo.id, 'jugadores');
-        const jugadoresSnapshot = await getDocs(jugadoresRef);
-        stats.totalJugadores += jugadoresSnapshot.size;
-      } catch (error) {
-        console.error('Error al contar jugadores:', error);
-      }
+      const jugadoresRef = collection(db, 'clubes', currentUser.clubId, 'equipos', equipo.id, 'jugadores');
+      const jugadoresSnapshot = await getDocs(jugadoresRef);
+      stats.totalJugadores += jugadoresSnapshot.size;
     }
 
-    // Analizar eventos
     const ahora = new Date();
     eventosData.forEach(evento => {
-      if (evento.tipo === 'partido') {
-        stats.partidosJugados++;
-      } else if (evento.tipo === 'entrenamiento') {
-        stats.entrenamientos++;
-      }
-      
+      if (evento.tipo === 'partido') stats.partidosJugados++;
+      else if (evento.tipo === 'entrenamiento') stats.entrenamientos++;
       const fechaEvento = evento.fecha?.toDate ? evento.fecha.toDate() : new Date(evento.fecha);
-      if (fechaEvento > ahora) {
-        stats.proximosEventos++;
-      }
+      if (fechaEvento > ahora) stats.proximosEventos++;
     });
 
     setEstadisticasClub(stats);
-  };
+  }, [currentUser]); // Depende de currentUser para acceder a clubId
+
+  // Este useEffect se ejecutará SOLO cuando selectedTeam cambie.
+  useEffect(() => {
+    if (!selectedTeam) {
+      setJugadores([]);
+      return;
+    }
+    const loadTeamData = async () => {
+      try {
+        const jugadoresRef = collection(db, 'clubes', currentUser.clubId, 'equipos', selectedTeam, 'jugadores');
+        const q = query(jugadoresRef, orderBy('numero_camiseta', 'asc'));
+        const jugadoresSnapshot = await getDocs(q);
+        setJugadores(jugadoresSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (error) {
+        console.error('Error al cargar jugadores del equipo:', error);
+      }
+    }
+    loadTeamData();
+  }, [selectedTeam, currentUser]); // Depende de selectedTeam y currentUser
+
+  const loadAllData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const equiposRef = collection(db, 'clubes', currentUser.clubId, 'equipos');
+      const equiposSnapshot = await getDocs(equiposRef);
+      const equiposData = equiposSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setEquipos(equiposData);
+
+      const eventosRef = collection(db, 'clubes', currentUser.clubId, 'eventos');
+      const eventosSnapshot = await getDocs(eventosRef);
+      const eventosData = eventosSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setEventos(eventosData);
+
+      await calcularEstadisticasClub(equiposData, eventosData);
+    } catch (error) {
+      console.error('Error al cargar datos:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser, calcularEstadisticasClub]);
+
+  useEffect(() => {
+    if (currentUser?.clubId) loadAllData();
+  }, [currentUser, loadAllData]);
 
   const getEquipoNombre = (equipoId) => {
     const equipo = equipos.find(eq => eq.id === equipoId);
@@ -135,7 +125,7 @@ function EstadisticasAnalisis() {
   const jugadoresNormalizados = jugadores.map(j => ({
     ...j,
     total_goles: (j.total_goles ?? j.estadisticas?.goles ?? 0),
-    total_asistencias: (j.total_asistencias ?? j.estadisticas?.asistencias ?? 0),
+    total_asistencias: (j.asistencias ?? j.estadisticas?.asistencias ?? 0),
     total_minutos_jugados: (j.total_minutos_jugados ?? j.estadisticas?.minutosJugados ?? 0),
   }));
 
@@ -292,26 +282,85 @@ function EstadisticasAnalisis() {
     return <div className="loading">Cargando estadísticas...</div>;
   }
 
+  if (loading) {
+    return (
+      <div className="loading-state">
+        <div className="loading-spinner"></div>
+        <p>Cargando estadísticas...</p>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <div className="info-card-modern">
-        <h2>Estadísticas y Análisis</h2>
-        <div className="actions-grid-modern">
-            <button className={`action-btn-modern ${activeTab === 'resumen' ? 'active' : ''}`} onClick={() => setActiveTab('resumen')}>
-                Resumen General
-            </button>
-            <button className={`action-btn-modern ${activeTab === 'jugadores' ? 'active' : ''}`} onClick={() => setActiveTab('jugadores')}>
-                Estadísticas de Jugadores
-            </button>
-            <button className={`action-btn-modern ${activeTab === 'comparativas' ? 'active' : ''}`} onClick={() => setActiveTab('comparativas')}>
-                Comparativas y Análisis
-            </button>
+    <div className="space-y-8">
+      {/* Encabezado */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Estadísticas y Análisis</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Visualiza el rendimiento de tu club y tus equipos.</p>
+        </div>
+        
+        <div className="w-full md:w-auto">
+          <select 
+            value={selectedTeam}
+            onChange={(e) => setSelectedTeam(e.target.value)}
+            className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Resumen del Club</option>
+            {equipos.map(equipo => (
+              <option key={equipo.id} value={equipo.id}>
+                {equipo.nombre}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {activeTab === 'resumen' && <div className="info-card-modern">{renderResumenTab()}</div>}
-      {activeTab === 'jugadores' && <div className="info-card-modern">{renderJugadoresTab()}</div>}
-      {activeTab === 'comparativas' && <div className="info-card-modern">{renderComparativasTab()}</div>}
+      {/* Tarjetas de Resumen */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow text-center">
+          <h4 className="text-2xl font-bold">{estadisticasClub.totalJugadores}</h4>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Jugadores Activos</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow text-center">
+          <h4 className="text-2xl font-bold">{estadisticasClub.partidosJugados}</h4>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Partidos Jugados</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow text-center">
+          <h4 className="text-2xl font-bold">{estadisticasClub.entrenamientos}</h4>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Entrenamientos</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow text-center">
+          <h4 className="text-2xl font-bold">{estadisticasClub.proximosEventos}</h4>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Próximos Eventos</p>
+        </div>
+      </div>
+
+      {/* Contenido Principal con Gráficos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Columna Izquierda: Evolución */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-bold mb-4">Evolución del Rendimiento</h3>
+          {/* El componente GraficoEvolucion necesita ser refactorizado para que funcione aquí */}
+          <div className="h-96 flex items-center justify-center text-gray-400">
+            <p>Gráfico de Evolución (Próximamente)</p>
+          </div>
+        </div>
+
+        {/* Columna Derecha: Rankings */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-bold mb-4">Rankings del Equipo</h3>
+          {selectedTeam && jugadores.length > 0 ? (
+            <div className="h-96">
+              <RankingGoles jugadores={jugadoresNormalizados} />
+            </div>
+          ) : (
+            <div className="h-96 flex items-center justify-center text-gray-400">
+              <p>Selecciona un equipo para ver los rankings.</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

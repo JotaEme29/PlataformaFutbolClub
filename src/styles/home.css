@@ -1,118 +1,138 @@
-/* src/styles/Home.css - Nuevos estilos para la página de inicio */
+/* src/styles/home.css */
 
-.home-container {
+:root {
+  --primary-color: #007bff;
+  --primary-hover-color: #0056b3;
+  --secondary-color: #6c757d;
+  --background-color: #f0f2f5;
+  --text-color: #333;
+  --card-background-color: #ffffff;
+  --border-color: #dee2e6;
+}
+
+.home-container-new {
   display: flex;
+  height: 100vh;
+  width: 100%;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  width: 100%;
-  position: relative;
+  background-color: var(--background-color);
+}
+
+.home-brand-new {
+  flex-basis: 50%;
+  padding: 4rem;
+  color: var(--text-color);
   text-align: center;
-  color: var(--color-text);
-  overflow: hidden;
-  
-  /* --- ¡LA PARTE CLAVE! --- */
-  /* Reemplaza esta URL por una imagen de alta calidad de un estadio o campo */
-  background: var(--gradient-app);
-}
-
-.home-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(10, 20, 30, 0.7); /* Superposición oscura para contraste */
-  backdrop-filter: blur(4px);
-}
-
-.home-content {
-  position: relative; /* Para que esté por encima de la superposición */
-  z-index: 2;
-  padding: 2rem;
-  max-width: 800px;
 }
 
 .logo-placeholder {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  animation: spin 8s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  margin-bottom: 1.5rem;
 }
 
 .home-title {
-  font-size: 3.5rem;
+  font-size: 2.5rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  text-shadow: 0 0 15px rgba(0, 255, 135, 0.4);
 }
 
 .home-subtitle {
-  font-size: 1.25rem;
-  font-weight: 300;
-  margin-bottom: 2.5rem;
+  font-size: 1.2rem;
+  color: var(--secondary-color);
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.85);
 }
 
-.home-actions {
+.auth-box-new {
+  flex-basis: 50%;
+  max-width: 450px;
+  padding: 2.5rem;
+  background-color: var(--card-background-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.auth-toggle {
   display: flex;
-  justify-content: center;
-  gap: 1.5rem;
+  justify-content: space-around;
+  margin-bottom: 1.5rem;
+  background-color: #e9ecef;
+  border-radius: 6px;
+  padding: 0.25rem;
 }
 
-.btn {
-  padding: 1rem 2.5rem;
+.auth-toggle button {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  background-color: transparent;
+  color: var(--secondary-color);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 4px;
+}
+
+.auth-toggle button.active {
+  background-color: var(--card-background-color);
+  color: var(--primary-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.auth-form h2 {
+  text-align: center;
+  margin-bottom: 0.5rem;
+  font-size: 1.8rem;
+}
+
+.auth-form .sub {
+  text-align: center;
+  color: var(--secondary-color);
+  margin-bottom: 1.5rem;
+}
+
+.form-row {
+  margin-bottom: 1rem;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.btn-auth-primary {
+  width: 100%;
+  padding: 0.85rem;
+  border: none;
+  border-radius: 4px;
+  background-color: var(--primary-color);
+  color: white;
   font-size: 1rem;
   font-weight: 600;
-  text-decoration: none;
-  border-radius: 5px;
-  border: 2px solid transparent;
-  transition: all 0.3s ease;
   cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  transition: background-color 0.3s ease;
+  margin-top: 1rem;
 }
 
-.btn-primary {
-  background-color: #00bfa6; /* Un verde azulado vibrante */
-  color: white;
-  box-shadow: 0 4px 20px rgba(0, 191, 166, 0.3);
+.btn-auth-primary:hover {
+  background-color: var(--primary-hover-color);
 }
 
-.btn-primary:hover {
-  background-color: #00a794;
-  transform: translateY(-3px);
-  box-shadow: 0 6px 25px rgba(0, 191, 166, 0.5);
+.auth-error {
+  color: #d93025;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  text-align: center;
 }
-
-.btn-secondary {
-  background-color: transparent;
-  color: white;
-  border-color: rgba(255, 255, 255, 0.7);
-}
-
-.btn-secondary:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: white;
-  transform: translateY(-3px);
-}
-
-@media (max-width: 600px) {
-  .home-actions {
-    flex-direction: column;
-  }
-  .home-title {
-    font-size: 2.5rem;
-  }
-}
-
-/* Theme overrides for Home */
-.home-overlay { background: linear-gradient(180deg, rgba(3,10,22,0.55), rgba(3,10,22,0.25)); }
-.home-title { text-shadow: 0 0 18px rgba(0, 227, 162, 0.45); }

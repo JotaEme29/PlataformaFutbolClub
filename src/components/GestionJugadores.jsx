@@ -15,6 +15,7 @@ import {
   where,
   orderBy
 } from 'firebase/firestore';
+import CardJugador from './CardJugador';
 
 function GestionJugadores() {
   const { currentUser } = useAuth();
@@ -272,6 +273,9 @@ function GestionJugadores() {
 
       {selectedTeam && (
         <>
+          <style>{`
+            .players-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;align-items:start}
+          `}</style>
           <div className="jugadores-actions">
             <div className="team-info">
               {(() => {
@@ -302,53 +306,26 @@ function GestionJugadores() {
             </div>
           </div>
 
-          {/* Lista de Jugadores */}
-          <div className="jugadores-grid">
+          {/* Lista de Jugadores (grilla compacta con CardJugador) */}
+          <div className="players-grid">
             {jugadores.map(jugador => (
-              <div key={jugador.id} className="jugador-card">
-                <div className="jugador-header">
-                  <div className="numero-camiseta">#{jugador.numeroCamiseta}</div>
-                  <div className="jugador-info">
-                    <h4>{jugador.nombre} {jugador.apellido}</h4>
-                    <p className="posicion">{jugador.posicion}</p>
-                  </div>
-                </div>
-                <div className="jugador-details">
-                  <p><strong>Edad:</strong> {calcularEdad(jugador.fechaNacimiento)} años</p>
-                  <p><strong>Teléfono:</strong> {jugador.telefono || 'No especificado'}</p>
-                  <p><strong>Email:</strong> {jugador.email || 'No especificado'}</p>
-                </div>
-                <div className="jugador-stats">
-                  <div className="stat-item">
-                    <span className="stat-value">{jugador.estadisticas?.partidosJugados || 0}</span>
-                    <span className="stat-label">Partidos</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-value">{jugador.estadisticas?.goles || 0}</span>
-                    <span className="stat-label">Goles</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-value">{jugador.estadisticas?.asistencias || 0}</span>
-                    <span className="stat-label">Asistencias</span>
-                  </div>
-                </div>
-                <div className="jugador-actions" style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-                  <button className="btn btn-icon" title="Editar jugador" aria-label="Editar jugador">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
-                  </button>
-                  <button className="btn btn-icon" title="Ver perfil" aria-label="Ver perfil">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12s-3.75 6.75-9.75 6.75S2.25 12 2.25 12z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                  </button>
-                  <button 
-                    className="btn btn-icon btn-danger"
-                    onClick={() => handleDeletePlayer(jugador.id)}
-                    title="Eliminar jugador"
-                    aria-label="Eliminar jugador"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12m-9 0v-.5A1.5 1.5 0 0110.5 5h3A1.5 1.5 0 0115 6.5V7m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
-                  </button>
-                </div>
-              </div>
+              <CardJugador
+                key={jugador.id}
+                jugador={{
+                  id: jugador.id,
+                  nombre: jugador.nombre,
+                  apellidos: jugador.apellido,
+                  posicion: jugador.posicion,
+                  dorsal: jugador.numeroCamiseta,
+                  total_goles: jugador.estadisticas?.goles || 0,
+                  total_asistencias: jugador.estadisticas?.asistencias || 0,
+                  total_minutos_jugados: jugador.estadisticas?.minutosJugados || 0,
+                  total_convocatorias: jugador.estadisticas?.partidosJugados || 0,
+                  valoracion_general_promedio: jugador.valoracion_general_promedio || 0,
+                }}
+                onEdit={() => {}}
+                onDelete={() => handleDeletePlayer(jugador.id)}
+              />
             ))}
           </div>
 

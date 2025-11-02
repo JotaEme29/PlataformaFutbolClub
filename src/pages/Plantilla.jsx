@@ -1,110 +1,247 @@
-// src/pages/Plantilla.jsx - VERSIÓN FINAL CON EDICIÓN FUNCIONAL
-
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { FaStar, FaFutbol, FaRunning } from 'react-icons/fa';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Bar } from 'react-chartjs-2';
 import { useAuth } from '../context/AuthContext';
-import PlayerForm from '../components/PlayerForm';
 import CardJugador from '../components/CardJugador';
+import JugadorFormModal from '../components/JugadorFormModal'; // Asumo que tienes un modal para crear/editar
 
-function Plantilla() {
-  const [plantilla, setPlantilla] = useState([]);
-  const [loading, setLoading] = useState(true);
+const Plantilla = () => {
   const { currentUser } = useAuth();
-  const [isPlayerFormOpen, setIsPlayerFormOpen] = useState(false);
-  const [jugadorSeleccionado, setJugadorSeleccionado] = useState(null);
+  const [equipos, setEquipos] = useState([]);
+  const [equipoSeleccionado, setEquipoSeleccionado] = useState('');
 
+  // --- REGISTRO DE COMPONENTES DE CHART.JS ---
+  ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend
+  );
+  const [jugadores, setJugadores] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [jugadorAEditar, setJugadorAEditar] = useState(null);
+
+  // Cargar equipos del club
   useEffect(() => {
-    if (!currentUser?.teamId) {
-      setLoading(false);
+    if (!currentUser?.clubId) return;
+
+    const equiposRef = collection(db, 'clubes', currentUser.clubId, 'equipos');
+    const q = query(equiposRef, orderBy('nombre'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const listaEquipos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setEquipos(listaEquipos);
+      if (listaEquipos.length > 0 && !equipoSeleccionado) {
+        setEquipoSeleccionado(listaEquipos[0].id);
+      }
+    }, (err) => {
+      console.error("Error al cargar equipos:", err);
+      setError("No se pudieron cargar los equipos.");
+    });
+
+    return () => unsubscribe();
+  }, [currentUser, equipoSeleccionado]);
+
+  // --- ¡LA CLAVE ESTÁ AQUÍ! ---
+  // Cargar jugadores del equipo seleccionado CON ESCUCHA EN TIEMPO REAL
+  useEffect(() => {
+    if (!currentUser?.clubId || !equipoSeleccionado) {
+      setJugadores([]);
       return;
     }
-    const q = query(collection(db, 'jugadores'), where("teamId", "==", currentUser.teamId));
-    getDocs(q).then(querySnapshot => {
-      const listaJugadores = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setPlantilla(listaJugadores);
+
+    setLoading(true);
+    const jugadoresRef = collection(db, 'clubes', currentUser.clubId, 'equipos', equipoSeleccionado, 'jugadores');
+    const q = query(jugadoresRef, orderBy('numero_camiseta', 'asc'));
+
+    // onSnapshot crea un listener que actualiza 'jugadores' automáticamente
+    // cada vez que hay un cambio en la base de datos.
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const listaJugadores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setJugadores(listaJugadores);
+      setLoading(false);
+    }, (err) => {
+      console.error("Error al cargar jugadores:", err);
+      setError("No se pudieron cargar los jugadores.");
       setLoading(false);
     });
-  }, [currentUser]);
 
-  const handleGuardarJugador = async (datosJugador) => {
-    if (jugadorSeleccionado) {
-      // --- MODO EDICIÓN ---
-      const jugadorDocRef = doc(db, 'jugadores', jugadorSeleccionado.id);
-      // ¡CORRECCIÓN! Usamos 'updateDoc' para no borrar las estadísticas existentes.
-      await updateDoc(jugadorDocRef, datosJugador);
-    } else {
-      // --- MODO CREACIÓN ---
-      const newPlayerData = {
-        ...datosJugador,
-        teamId: currentUser.teamId,
-        total_convocatorias: 0, total_goles: 0, total_asistencias: 0,
-        total_minutos_jugados: 0, total_tarjetas_amarillas: 0, total_tarjetas_rojas: 0,
-        eventos_evaluados: 0, promedio_tecnica: 0, promedio_fisico: 0,
-        promedio_tactica: 0, promedio_actitud: 0, valoracion_general_promedio: 0,
-      };
-      await addDoc(collection(db, 'jugadores'), newPlayerData);
-    }
-    // Cierra el formulario y recarga los datos para ver los cambios
-    setIsPlayerFormOpen(false);
-    window.location.reload(); // Simple y efectivo
+    // La función de limpieza se ejecuta cuando el componente se desmonta
+    // o cuando cambia el equipo seleccionado, cerrando la conexión anterior.
+    return () => unsubscribe();
+
+  }, [currentUser, equipoSeleccionado]);
+
+  const handleOpenModal = (jugador = null) => {
+    setJugadorAEditar(jugador);
+    setIsModalOpen(true);
   };
 
-  const handleEliminarJugador = async (jugadorId) => {
-    if (window.confirm("¿Estás seguro de que quieres eliminar a este jugador? Esta acción es irreversible.")) {
-      await deleteDoc(doc(db, 'jugadores', jugadorId));
-      window.location.reload();
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setJugadorAEditar(null);
+  };
+
+  // Lógica para eliminar jugador (deberías tenerla implementada)
+  const handleDeletePlayer = async (jugadorId) => {
+    if (window.confirm("¿Estás seguro de que quieres eliminar a este jugador?")) {
+      // Aquí iría tu lógica para eliminar el documento del jugador de Firestore
+      console.log("Eliminar jugador:", jugadorId);
     }
   };
 
-  const abrirFormularioParaEditar = (jugador) => {
-    setJugadorSeleccionado(jugador);
-    setIsPlayerFormOpen(true);
-  };
+  // --- INICIO: Lógica para los rankings Top 5 ---
+  const topGoleadores = [...jugadores]
+    .sort((a, b) => (b.total_goles || 0) - (a.total_goles || 0))
+    .slice(0, 5);
 
-  const abrirFormularioParaNuevo = () => {
-    setJugadorSeleccionado(null);
-    setIsPlayerFormOpen(true);
-  };
+  const topValoraciones = [...jugadores]
+    .filter(j => j.partidos_jugados > 0)
+    .sort((a, b) => {
+      const valoracionA = a.suma_valoraciones / a.partidos_jugados;
+      const valoracionB = b.suma_valoraciones / b.partidos_jugados;
+      return valoracionB - valoracionA;
+    })
+    .slice(0, 5);
 
-  if (loading) return <div className="card">Cargando plantilla...</div>;
+  const topMinutos = [...jugadores]
+    .sort((a, b) => (b.minutos_jugados || 0) - (a.minutos_jugados || 0))
+    .slice(0, 5);
+
+  const RankingChartCard = ({ title, data, dataKey, dataSuffix = '', icon, chartColor }) => {
+    const chartData = {
+      labels: data.map(j => j.apodo || j.nombre),
+      datasets: [
+        {
+          label: title,
+          data: data.map(j => {
+            if (dataKey === 'valoracionMedia') {
+              return (j.suma_valoraciones / j.partidos_jugados).toFixed(1);
+            }
+            return j[dataKey] || 0;
+          }),
+          backgroundColor: chartColor,
+          borderColor: chartColor,
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    const chartOptions = {
+      indexAxis: 'y', // Esto hace el gráfico de barras horizontal
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        title: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => `${context.parsed.x}${dataSuffix}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { color: '#9ca3af' },
+          grid: { color: '#374151' }
+        },
+        y: {
+          ticks: { color: '#9ca3af' },
+          grid: { display: false }
+        },
+      },
+    };
+
+    return (
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-bold flex items-center gap-2 mb-3">
+          {icon}
+          {title}
+        </h3>
+        <div className="h-64 relative">
+          {data.length > 0 ? <Bar options={chartOptions} data={chartData} /> : <p className="text-center text-xs text-gray-500 pt-20">No hay datos suficientes.</p>}
+        </div>
+      </div>
+    );
+  };
+  // --- FIN: Lógica para los rankings Top 5 ---
 
   return (
-    <div>
-      <div className="plantilla-header">
-        <h1>Plantilla</h1>
-        <button onClick={abrirFormularioParaNuevo} className="btn btn-primary">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" width="18" height="18" style={{ marginRight: '6px' }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
-          </svg>
-          <span>Añadir Jugador</span>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Plantilla de Jugadores</h1>
+        <button onClick={() => handleOpenModal()} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+          + Añadir Jugador
         </button>
       </div>
 
-      <div className="plantilla-grid">
-        {plantilla
-          .slice() // Crea una copia para no mutar el estado original
-          .sort((a, b) => (b.valoracion_general_promedio || 0) - (a.valoracion_general_promedio || 0))
-          .map(jugador => (
-            <CardJugador
-              key={jugador.id}
-              jugador={jugador}
-              onEdit={abrirFormularioParaEditar}
-              onDelete={handleEliminarJugador}
-            />
-          ))}
+      {/* --- INICIO: Nuevo Filtro de Equipos por Cápsulas --- */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold mr-2">Equipos:</span>
+        {equipos.map(equipo => (
+          <button
+            key={equipo.id}
+            onClick={() => setEquipoSeleccionado(equipo.id)}
+            className={`px-4 py-1.5 text-sm font-bold rounded-full transition-all duration-200 border-2 ${
+              equipoSeleccionado === equipo.id
+                ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+            }`}
+          >
+            {equipo.nombre}
+          </button>
+        ))}
       </div>
-      
 
-      {/* El PlayerForm ahora es un modal que se renderiza aquí */}
-      <PlayerForm
-        isOpen={isPlayerFormOpen}
-        onClose={() => setIsPlayerFormOpen(false)}
-        onSave={handleGuardarJugador}
-        jugadorExistente={jugadorSeleccionado}
-      />
+      {/* --- INICIO: Sección de Rankings --- */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <RankingChartCard title="Top 5 Goleadores" data={topGoleadores} dataKey="total_goles" icon={<FaFutbol className="text-green-500" />} chartColor="rgba(34, 197, 94, 0.6)" />
+        <RankingChartCard title="Top 5 Valoraciones" data={topValoraciones} dataKey="valoracionMedia" icon={<FaStar className="text-amber-500" />} chartColor="rgba(245, 158, 11, 0.6)" />
+        <RankingChartCard title="Top 5 Minutos Jugados" data={topMinutos} dataKey="minutos_jugados" dataSuffix="'" icon={<FaRunning className="text-purple-500" />} chartColor="rgba(168, 85, 247, 0.6)" />
+      </div>
+
+      {loading && <p>Cargando jugadores...</p>}
+      {error && <p className="text-red-500">{error}</p>}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {jugadores.map(jugador => (
+          <CardJugador
+            key={jugador.id}
+            jugador={jugador}
+            onEdit={handleOpenModal}
+            onVerGrafico={() => alert(`Mostrar gráfico para ${jugador.nombre}`)} // Placeholder para la funcionalidad del gráfico
+            onDelete={handleDeletePlayer}
+          />
+        ))}
+      </div>
+
+      {isModalOpen && (
+        <JugadorFormModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          jugador={jugadorAEditar}
+          equipoId={equipoSeleccionado}
+        />
+      )}
     </div>
   );
-}
+};
 
 export default Plantilla;

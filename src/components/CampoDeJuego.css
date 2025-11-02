@@ -1,129 +1,104 @@
-/* src/components/CampoDeJuego.css - VERSIÓN FINAL Y ÚNICA */
+/* ============================================= */
+/* == Estilos para la Tarjeta de Jugador en Campo == */
+/* ============================================= */
 
-.campo-container {
-  width: 100%;
-  position: relative;
-  background-color: #2a2d35; /* Fondo oscuro para el contenedor */
+.player-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 110px;
+  padding: 8px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 2px solid transparent;
   border-radius: 8px;
-  overflow: hidden;
-  
-  /* 
-    LA SOLUCIÓN DIRECTA Y FINAL:
-    Una altura fija basada en la altura de la ventana.
-    Esto GARANTIZA que el campo siempre cabrá en la pantalla.
-    Puedes jugar con este valor (ej. 65vh, 75vh) para ajustarlo.
-  */
-  height: 75vh; 
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
 }
 
-.campo {
-  position: absolute;
-  top: 10px;    /* Margen interior */
-  left: 10px;   /* Margen interior */
-  right: 10px;  /* Margen interior */
-  bottom: 10px; /* Margen interior */
-  background-color: #28a745; /* Verde césped */
-  border: 2px solid rgba(255, 255, 255, 0.5);
+.dark .player-card {
+  background-color: rgba(31, 41, 55, 0.9); /* gray-800 con opacidad */
+  border-color: transparent;
 }
 
-/* --- LÍNEAS DEL CAMPO --- */
-.linea-central {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background-color: rgba(255, 255, 255, 0.5);
+.player-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.25);
 }
 
-.circulo-central {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 15%; /* Ajusta el tamaño del círculo */
-  padding-top: 15%;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  border-radius: 50%;
+.player-card.selected {
+  border-color: #3b82f6; /* blue-500 */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
 }
 
-.area-grande {
-  position: absolute;
-  left: 15%;
-  right: 15%;
-  height: 18%;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-}
-
-.area-pequena {
-  position: absolute;
-  left: 30%;
-  right: 30%;
-  height: 8%;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-}
-
-.area-arriba { top: 0; border-top: none; }
-.area-abajo { bottom: 0; border-bottom: none; }
-
-
-/* --- POSICIONES Y JUGADORES --- */
-.posicion-tactica {
-  position: absolute;
-  transform: translate(-50%, -50%);
-}
-
-.jugador-en-campo {
+.player-card-info {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background-color: #282c34;
-  color: white;
-  border-radius: 4px; /* Cuadrado */
-  width: 60px;
-  height: 60px;
-  cursor: pointer;
-  border: 2px solid #61dafb;
-  transition: transform 0.2s;
-  text-align: center;
-  overflow: hidden;
-  padding: 4px;
+  font-weight: 600;
 }
 
-.jugador-en-campo:hover {
-  transform: scale(1.1);
+.player-card-number {
+  font-size: 0.8rem;
+  color: #6b7280; /* gray-500 */
 }
 
-.jugador-en-campo .dorsal {
-  font-size: 1.4em;
-  font-weight: bold;
+.dark .player-card-number {
+  color: #9ca3af; /* gray-400 */
 }
 
-.jugador-en-campo .nombre {
-  font-size: 0.8em;
-  text-transform: uppercase;
+.player-card-name {
+  font-size: 0.9rem;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-.posicion-vacia {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px dashed rgba(255, 255, 255, 0.3);
+/* --- Controles de Evaluación --- */
+.player-card-controls {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border-top: 1px solid #e5e7eb; /* gray-200 */
+  padding-top: 6px;
+  margin-top: 4px;
 }
 
-/* En src/components/CampoDeJuego.css */
+.dark .player-card-controls {
+  border-top-color: #4b5563; /* gray-600 */
+}
 
-.minutos-en-campo {
-  /* Corrección: Posicionamos el contador dentro de la tarjeta */
-  position: relative; /* Lo sacamos del posicionamiento absoluto */
-  background: rgba(0, 0, 0, 0.4);
-  color: #ffffff;
-  font-size: 0.75em;
-  font-weight: bold;
-  padding: 1px 6px;
-  border-radius: 5px;
-  margin-top: 4px; /* Espacio entre el nombre y los minutos */
+.eval-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 1.4rem; /* Iconos más grandes */
+  line-height: 1;
+  transition: transform 0.1s ease, color 0.2s;
+}
+
+.eval-btn:active {
+  transform: scale(0.9);
+}
+
+.eval-btn.plus { color: #16a34a; } /* green-600 */
+.eval-btn.minus { color: #dc2626; } /* red-600 */
+.eval-btn.plus:hover { color: #15803d; } /* green-700 */
+.eval-btn.minus:hover { color: #b91c1c; } /* red-700 */
+
+.momentum-display {
+  font-size: 1.1rem;
+  font-weight: 700;
+  min-width: 30px;
+  text-align: center;
+}
+
+.momentum-positive { color: #16a34a; }
+.momentum-negative { color: #dc2626; }
+.momentum-neutral { color: #6b7280; }
+
+.dark .momentum-neutral {
+  color: #9ca3af;
 }

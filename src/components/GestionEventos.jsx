@@ -1,5 +1,4 @@
-// src/components/GestionEventos.jsx - GESTIÓN DE EVENTOS Y ENTRENAMIENTOS PARA PLATAFORMA FÚTBOL 2.0
-
+// src/components/GestionEventos.jsx - Modern Event Management
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -17,6 +16,17 @@ import {
   orderBy,
   Timestamp
 } from 'firebase/firestore';
+import { 
+  FaCalendarPlus, 
+  FaEye, 
+  FaTrash, 
+  FaClock, 
+  FaMapMarkerAlt, 
+  FaUsers,
+  FaCalendarAlt,
+  FaListUl
+} from 'react-icons/fa';
+import './GestionEventos.css';
 
 function GestionEventos() {
   const { currentUser } = useAuth();
@@ -242,8 +252,8 @@ function GestionEventos() {
               <p><strong>Fecha:</strong> {formatearFecha(evento.fecha)}</p>
               <p><strong>Ubicación:</strong> {evento.ubicacion || 'No especificada'}</p>
               <div className="actions-grid-modern">
-                <button className="action-btn-modern" onClick={() => navigate(`/eventos/${evento.id}`)}>Ver detalles</button>
-                <button className="action-btn-modern" onClick={() => handleDeleteEvent(evento.id)}>Eliminar</button>
+                <button className="action-btn-modern" onClick={() => navigate(`/eventos/${evento.id}`)}><FaEye /></button>
+                <button className="action-btn-modern" onClick={() => handleDeleteEvent(evento.id)}><FaTrash /></button>
               </div>
             </div>
           );

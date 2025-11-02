@@ -8,13 +8,13 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
-function GraficoEvolucion({ jugadores }) {
+function GraficoEvolucion({ jugadores = [] }) {
   const [jugadorSeleccionado, setJugadorSeleccionado] = useState('');
   const [datosGrafico, setDatosGrafico] = useState({ labels: [], datasets: [] });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (jugadores.length > 0 && !jugadorSeleccionado) {
+    if (jugadores?.length > 0 && !jugadorSeleccionado) {
       setJugadorSeleccionado(jugadores[0].id);
     }
   }, [jugadores, jugadorSeleccionado]);
@@ -88,11 +88,15 @@ function GraficoEvolucion({ jugadores }) {
 
   return (
     <>
-      <select value={jugadorSeleccionado} onChange={(e) => setJugadorSeleccionado(e.target.value)} className="select-dashboard">
-        {jugadores.map(j => (
-          <option key={j.id} value={j.id}>{j.nombre} {j.apellidos}</option>
-        ))}
-      </select>
+      {jugadores?.length > 0 ? (
+        <select value={jugadorSeleccionado} onChange={(e) => setJugadorSeleccionado(e.target.value)} className="select-dashboard">
+          {jugadores.map(j => (
+            <option key={j.id} value={j.id}>{j.nombre} {j.apellido}</option>
+          ))}
+        </select>
+      ) : (
+        <p className="no-data">No hay jugadores disponibles</p>
+      )}
       {loading ? <p>Cargando evolución...</p> : <Line options={options} data={datosGrafico} />}
     </>
   );

@@ -1,5 +1,6 @@
 // src/components/GestionRoles.jsx - GESTIÓN DE ROLES Y PERMISOS PARA PLATAFORMA FÚTBOL 2.0
 
+import Modal from 'react-modal';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
@@ -15,6 +16,29 @@ import {
   where,
   orderBy
 } from 'firebase/firestore';
+import { FaPlus } from 'react-icons/fa';
+
+const customStyles = {
+  content: {
+    top: '50%',
+    left: '50%',
+    right: 'auto',
+    bottom: 'auto',
+    marginRight: '-50%',
+    transform: 'translate(-50%, -50%)',
+    border: 'none',
+    background: 'transparent',
+    padding: 0,
+    overflow: 'visible',
+    width: '90%',
+    maxWidth: '600px',
+  },
+  overlay: {
+    backgroundColor: 'rgba(17, 24, 39, 0.75)',
+    zIndex: 50,
+  },
+};
+Modal.setAppElement('#root');
 
 function GestionRoles() {
   const { currentUser } = useAuth();
@@ -174,140 +198,130 @@ function GestionRoles() {
   };
 
   if (loading) {
-    return <div className="loading">Cargando gestión de roles...</div>;
+    return <div className="text-center p-8">Cargando gestión de roles...</div>;
   }
 
   return (
-    <div className="gestion-roles">
-      <div className="roles-header">
-        <h2>Gestión de Roles y Permisos</h2>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Usuarios e Invitaciones</h2>
         <button 
-          className="btn-primary"
           onClick={() => setShowInviteForm(true)}
+          className="flex items-center justify-center gap-2 w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300"
         >
-          + Invitar Usuario
+          <FaPlus /> Invitar Usuario
         </button>
       </div>
 
       {/* Información de Roles */}
-      <div className="roles-info-section">
-        <h3>Tipos de Roles</h3>
-        <div className="roles-info-grid">
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Tipos de Roles</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {roles.map(role => (
-            <div key={role.value} className="role-info-card">
-              <h4>{role.label}</h4>
-              <p className="role-description">{role.description}</p>
-              <div className="permissions-list">
-                <strong>Permisos:</strong>
-                <ul>
-                  {role.permissions.map(permission => (
-                    <li key={permission}>
-                      {permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            <div key={role.value} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 className="font-bold text-gray-800 dark:text-gray-200">{role.label}</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{role.description}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Usuarios Actuales */}
-      <div className="usuarios-section">
-        <h3>Usuarios del Club ({usuarios.length})</h3>
-        <div className="usuarios-table">
-          <div className="table-header">
-            <div className="col-name">Usuario</div>
-            <div className="col-role">Rol</div>
-            <div className="col-team">Equipo</div>
-            <div className="col-actions">Acciones</div>
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Usuarios del Club ({usuarios.length})</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Usuario</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Rol</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Equipo</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {usuarios.map(usuario => {
+                  const roleInfo = getRoleInfo(usuario.rol);
+                  return (
+                    <tr key={usuario.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-medium text-gray-900 dark:text-white">{usuario.nombre} {usuario.apellido}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{usuario.email}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200`}>
+                          {roleInfo.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {usuario.equipoId ? getEquipoNombre(usuario.equipoId) : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {usuario.id !== currentUser.uid ? (
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const [newRole, equipoId] = e.target.value.split('|');
+                                handleUpdateUserRole(usuario.id, newRole, equipoId);
+                                e.target.value = '';
+                              }
+                            }}
+                            className="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md py-1 px-2 text-sm"
+                          >
+                            <option value="">Cambiar rol...</option>
+                            {roles.map(role => (
+                              <optgroup key={role.value} label={role.label}>
+                                {['entrenador', 'asistente', 'jugador'].includes(role.value) ? (
+                                  equipos.map(equipo => (
+                                    <option key={`${role.value}-${equipo.id}`} value={`${role.value}|${equipo.id}`}>
+                                      {role.label} - {equipo.nombre}
+                                    </option>
+                                  ))
+                                ) : (
+                                  <option value={`${role.value}|`}>{role.label}</option>
+                                )}
+                              </optgroup>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200">Tú</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          {usuarios.map(usuario => {
-            const roleInfo = getRoleInfo(usuario.rol);
-            return (
-              <div key={usuario.id} className="table-row">
-                <div className="col-name">
-                  <div className="user-info">
-                    <strong>{usuario.nombre} {usuario.apellido}</strong>
-                    <span className="user-email">{usuario.email}</span>
-                  </div>
-                </div>
-                <div className="col-role">
-                  <span className={`role-badge role-${usuario.rol}`}>
-                    {roleInfo.label}
-                  </span>
-                </div>
-                <div className="col-team">
-                  {usuario.equipoId ? getEquipoNombre(usuario.equipoId) : 'Todos los equipos'}
-                </div>
-                <div className="col-actions">
-                  {usuario.id !== currentUser.uid && (
-                    <select
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          const [newRole, equipoId] = e.target.value.split('|');
-                          handleUpdateUserRole(usuario.id, newRole, equipoId);
-                          e.target.value = '';
-                        }
-                      }}
-                      className="role-selector"
-                    >
-                      <option value="">Cambiar rol...</option>
-                      {roles.map(role => (
-                        <optgroup key={role.value} label={role.label}>
-                          {role.value === 'entrenador' || role.value === 'asistente' || role.value === 'jugador' ? (
-                            equipos.map(equipo => (
-                              <option key={`${role.value}-${equipo.id}`} value={`${role.value}|${equipo.id}`}>
-                                {role.label} - {equipo.nombre}
-                              </option>
-                            ))
-                          ) : (
-                            <option value={`${role.value}|`}>
-                              {role.label}
-                            </option>
-                          )}
-                        </optgroup>
-                      ))}
-                    </select>
-                  )}
-                  {usuario.id === currentUser.uid && (
-                    <span className="current-user-badge">Tú</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
         </div>
       </div>
 
       {/* Invitaciones Pendientes */}
       {invitaciones.length > 0 && (
-        <div className="invitaciones-section">
-          <h3>Invitaciones Pendientes ({invitaciones.length})</h3>
-          <div className="invitaciones-grid">
+        <div>
+          <h3 className="text-xl font-semibold mb-4">Invitaciones Pendientes ({invitaciones.length})</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {invitaciones.map(invitacion => {
               const roleInfo = getRoleInfo(invitacion.rol);
               return (
-                <div key={invitacion.id} className="invitacion-card">
-                  <div className="invitacion-info">
-                    <h4>{invitacion.nombre} {invitacion.apellido}</h4>
-                    <p><strong>Email:</strong> {invitacion.email}</p>
-                    <p><strong>Rol:</strong> {roleInfo.label}</p>
+                <div key={invitacion.id} className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-300 dark:border-yellow-700">
+                  <div className="flex flex-col h-full">
+                    <h4 className="font-bold text-gray-800 dark:text-gray-200">{invitacion.nombre} {invitacion.apellido}</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{invitacion.email}</p>
+                    <p className="text-sm mt-2"><strong>Rol:</strong> {roleInfo.label}</p>
                     {invitacion.equipoId && (
-                      <p><strong>Equipo:</strong> {getEquipoNombre(invitacion.equipoId)}</p>
+                      <p className="text-sm"><strong>Equipo:</strong> {getEquipoNombre(invitacion.equipoId)}</p>
                     )}
-                    <p><strong>Enviada:</strong> {
-                      invitacion.fechaInvitacion?.toDate?.()?.toLocaleDateString() || 'Fecha no disponible'
-                    }</p>
-                  </div>
-                  <div className="invitacion-actions">
-                    <button 
-                      className="btn-small btn-danger"
+                    <div className="mt-auto pt-2">
+                      <button 
                       onClick={() => handleCancelInvitation(invitacion.id)}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1 px-2 rounded-md transition-colors"
                     >
                       Cancelar
                     </button>
                   </div>
+                </div>
                 </div>
               );
             })}
@@ -316,44 +330,52 @@ function GestionRoles() {
       )}
 
       {/* Formulario de Invitación */}
-      {showInviteForm && (
-        <div className="form-modal">
-          <form onSubmit={handleSendInvite} className="invite-form">
-            <h4>Invitar Nuevo Usuario</h4>
-            <div className="input-row">
-              <div className="input-group">
-                <label>Nombre *</label>
+      <Modal isOpen={showInviteForm} onRequestClose={() => setShowInviteForm(false)} style={customStyles} contentLabel="Formulario de Invitación">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 md:p-8 max-h-[90vh] overflow-y-auto">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Invitar Nuevo Usuario</h2>
+          <form onSubmit={handleSendInvite} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre *</label>
                 <input
                   type="text"
+                  id="nombre"
                   value={inviteData.nombre}
                   onChange={(e) => setInviteData({...inviteData, nombre: e.target.value})}
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700"
                   required
                 />
               </div>
-              <div className="input-group">
-                <label>Apellido *</label>
+              <div>
+                <label htmlFor="apellido" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Apellido *</label>
                 <input
                   type="text"
+                  id="apellido"
                   value={inviteData.apellido}
                   onChange={(e) => setInviteData({...inviteData, apellido: e.target.value})}
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700"
                   required
                 />
               </div>
             </div>
-            <div className="input-group">
-              <label>Email *</label>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email *</label>
               <input
                 type="email"
+                id="email"
                 value={inviteData.email}
                 onChange={(e) => setInviteData({...inviteData, email: e.target.value})}
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700"
                 required
               />
             </div>
-            <div className="input-group">
-              <label>Rol *</label>
+            <div>
+              <label htmlFor="rol" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Rol *</label>
               <select
+                id="rol"
                 value={inviteData.rol}
                 onChange={(e) => setInviteData({...inviteData, rol: e.target.value})}
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700 py-2"
                 required
               >
                 {roles.filter(role => role.value !== 'administrador_club').map(role => (
@@ -364,10 +386,11 @@ function GestionRoles() {
               </select>
             </div>
             {(inviteData.rol === 'entrenador' || inviteData.rol === 'asistente' || inviteData.rol === 'jugador') && (
-              <div className="input-group">
-                <label>Equipo *</label>
+              <div>
+                <label htmlFor="equipoId" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Asignar a Equipo *</label>
                 <select
                   value={inviteData.equipoId}
+                  id="equipoId"
                   onChange={(e) => setInviteData({...inviteData, equipoId: e.target.value})}
                   required
                 >
@@ -380,29 +403,19 @@ function GestionRoles() {
                 </select>
               </div>
             )}
-            <div className="role-preview">
-              <h5>Permisos del rol seleccionado:</h5>
-              <ul>
-                {getRoleInfo(inviteData.rol).permissions.map(permission => (
-                  <li key={permission}>
-                    {permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="btn-primary">Enviar Invitación</button>
+            <div className="pt-6 flex justify-end gap-3">
               <button 
                 type="button" 
-                className="btn-secondary"
                 onClick={() => setShowInviteForm(false)}
+                className="bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
               >
                 Cancelar
               </button>
+              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Enviar Invitación</button>
             </div>
           </form>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

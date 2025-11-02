@@ -1,826 +1,879 @@
-// src/pages/DetalleEvento.jsx - VERSIÓN FINAL Y COMPLETA (1/2)
+// src/pages/DetalleEvento.jsx - Refactorizado con Tailwind CSS
 
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc, getDocs, collection, addDoc, updateDoc, deleteDoc, where, query, increment, writeBatch } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  collection,
+  getDocs,
+  updateDoc,
+  addDoc,
+  onSnapshot,
+  increment,
+  orderBy,
+  query,
+  where,
+  writeBatch,
+  deleteDoc
+} from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { registrarAccion, escucharAccionesEnVivo, eliminarAccion } from '../services/PartidoService.js';
-import Cronometro from '../components/Cronometro';
 import CampoDeJuego from '../components/CampoDeJuego';
-import useInterval from '../hooks/useInterval';
-import { ordenPosiciones } from '../../config/formaciones.js';
-import './DetalleEvento.css'; // ¡NUEVA IMPORTACIÓN!
+import Cronometro from '../components/Cronometro';
+import EvaluacionRapida from '../components/EvaluacionRapida'; // Importamos el nuevo componente
+import { ordenPosiciones } from '../../config/formaciones';
+import { FaPlay, FaPause, FaStop, FaFlag, FaRedo, FaCheckCircle } from 'react-icons/fa';
+
+const formatTime = (seconds) => {
+  if (!seconds || seconds < 0) return "0'";
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}'`;
+};
 
 function DetalleEvento() {
   const { eventoId } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
 
-  // --- Estados del Componente ---
+  // Estados principales
   const [evento, setEvento] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [plantilla, setPlantilla] = useState([]);
+  const [activeTab, setActiveTab] = useState('convocatoria');
+
+  const TabButton = ({ tabName, children, disabled = false }) => (
+    <button
+      onClick={() => setActiveTab(tabName)}
+      disabled={disabled}
+      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+        activeTab === tabName
+          ? 'bg-blue-600 text-white shadow'
+          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+      }`}
+    >
+      {children}
+    </button>
+  );
+
+  // Estados de datos
   const [convocados, setConvocados] = useState([]);
   const [noConvocados, setNoConvocados] = useState([]);
-  const [evaluaciones, setEvaluaciones] = useState({});
-  const [evaluacionesGuardadas, setEvaluacionesGuardadas] = useState([]);
-  const [yaEvaluado, setYaEvaluado] = useState(false);
-  const [statsPartido, setStatsPartido] = useState({ goles_local: 0, goles_visitante: 0 });
-  const [vista, setVista] = useState('convocatoria');
-
-  // --- Estados para "En Vivo" ---
-  const [sustitucionEnCurso, setSustitucionEnCurso] = useState(null); // Para el cambio por clics
-  const [accionesEnVivo, setAccionesEnVivo] = useState([]);
-  const [seleccionandoJugador, setSeleccionandoJugador] = useState(null);
   const [titulares, setTitulares] = useState([]);
   const [suplentes, setSuplentes] = useState([]);
-  const [cronoEnPausa, setCronoEnPausa] = useState(true);
-  const [fasePartido, setFasePartido] = useState('preparacion');
-  const [tiempoPrimeraParte, setTiempoPrimeraParte] = useState(0);
-  const [tiempoSegundaParte, setTiempoSegundaParte] = useState(0);
-  const [tiempoEnCampo, setTiempoEnCampo] = useState({});
-  const [posesion, setPosesion] = useState({ nuestra: 0, rival: 0 });
-  const [quienTienePosesion, setQuienTienePosesion] = useState(null);
   const [formacion, setFormacion] = useState('4-3-3');
+  const [jugadorParaIntercambio, setJugadorParaIntercambio] = useState(null); // Estado para el jugador seleccionado
 
-  // --- Estados para la Evaluación por Clics ---
-  const [columnas, setColumnas] = useState({
-    jugadores_pendientes: [],
-    a_mejorar: [],
-    correcto: [],
-    buen_partido: [],
-    destacado: [],
-  });
-  const [jugadorActivoId, setJugadorActivoId] = useState(null);
+  // Estados para "En Vivo"
+  const [fase, setFase] = useState('preparacion');
+  const [enPausa, setEnPausa] = useState(true); 
+  const [segundosReloj, setSegundosReloj] = useState(0); 
+  const [segundosAcumulados, setSegundosAcumulados] = useState(0); 
+  const [acciones, setAcciones] = useState([]);
+  const [seleccionandoAccion, setSeleccionandoAccion] = useState(null); // { tipo: 'GOL' }
+  const [marcador, setMarcador] = useState({ local: 0, visitante: 0 });
+  const [evaluaciones, setEvaluaciones] = useState({}); 
+  const [tiempoEnCampo, setTiempoEnCampo] = useState({}); // Para registrar minutos
 
-  const valoracionesPorCategoria = {
-    destacado: { tecnica: 9, fisico: 9, tactica: 9, actitud: 9 },
-    buen_partido: { tecnica: 8, fisico: 8, tactica: 8, actitud: 8 },
-    correcto: { tecnica: 7, fisico: 7, tactica: 7, actitud: 7 },
-    a_mejorar: { tecnica: 6, fisico: 6, tactica: 6, actitud: 6 },
-  };
 
-  // --- Carga de Datos Inicial ---
-  useEffect(() => {
-    const obtenerDatos = async () => {
-      if (!currentUser?.teamId) { setLoading(false); setError("No se ha podido verificar tu equipo."); return; }
-      const eventoDocRef = doc(db, 'eventos', eventoId);
-      const eventoDoc = await getDoc(eventoDocRef);
-      if (!eventoDoc.exists() || eventoDoc.data().teamId !== currentUser.teamId) { setError("Evento no encontrado."); setLoading(false); return; }
-      
-      const eventoData = { id: eventoDoc.id, ...eventoDoc.data() };
-      setEvento(eventoData);
-      if (typeof eventoData.goles_local !== 'undefined') { setStatsPartido({ goles_local: eventoData.goles_local, goles_visitante: eventoData.goles_visitante }); }
-      
-      const qPlantilla = query(collection(db, 'jugadores'), where("teamId", "==", currentUser.teamId));
-      const plantillaSnapshot = await getDocs(qPlantilla);
-      const listaPlantilla = plantillaSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setPlantilla(listaPlantilla);
-      
-      const qEvaluaciones = query(collection(db, 'evaluaciones'), where('id_evento', '==', eventoId), where('teamId', '==', currentUser.teamId));
-      const evaluacionesSnapshot = await getDocs(qEvaluaciones);
-      const evaluado = !evaluacionesSnapshot.empty;
-      setYaEvaluado(evaluado);
-
-      if (evaluado) {
-        const datosGuardados = evaluacionesSnapshot.docs.map(docEval => {
-          const datos = docEval.data();
-          const jugadorInfo = listaPlantilla.find(j => j.id === datos.id_jugador);
-          return { ...datos, nombre: jugadorInfo?.nombre || 'N/A', apellidos: jugadorInfo?.apellidos || '' };
-        });
-        setEvaluacionesGuardadas(datosGuardados);
-      }
-
-      // ...
-const convocadosIds = eventoData.convocados || [];
-const jugadoresConvocados = listaPlantilla.filter(j => convocadosIds.includes(j.id));
-setConvocados(jugadoresConvocados);
-setNoConvocados(listaPlantilla.filter(j => !convocadosIds.includes(j.id)));
-      
-      // --- LÓGICA DE INICIALIZACIÓN RESTAURADA Y CORREGIDA ---
-      const titularesGuardadosIds = eventoData.alineacion_titular || [];
-      if (titularesGuardadosIds.length > 0) {
-        // Si ya hay una alineación guardada, la cargamos.
-        const jugadoresTitulares = listaPlantilla.filter(j => titularesGuardadosIds.includes(j.id));
-        const jugadoresSuplentes = jugadoresConvocados.filter(j => !titularesGuardadosIds.includes(j.id));
-        setTitulares(jugadoresTitulares);
-        setSuplentes(jugadoresSuplentes);
-      } else {
-        // Si es la primera vez que se configura la alineación, todos los convocados están en el banquillo.
-        setTitulares([]);
-        setSuplentes(jugadoresConvocados);
-      }
-      // --- FIN DE LA CORRECCIÓN ---
-
-setLoading(false);
-// ...
-
-    };
-    obtenerDatos();
-  }, [eventoId, currentUser]);
-
-  // --- Listeners y Efectos Secundarios (Memoizados para optimización) ---
-  useEffect(() => {
-    if (vista !== 'en_vivo' || !eventoId) return;
-    const unsubscribe = escucharAccionesEnVivo(eventoId, (nuevasAcciones) => setAccionesEnVivo(nuevasAcciones));
-    return () => unsubscribe();
-  }, [vista, eventoId]);
-
-  const memoizedTitulares = useMemo(() => titulares, [titulares]);
-  useInterval(() => {
-    setTiempoEnCampo(prevTiempos => {
-      const nuevosTiempos = { ...prevTiempos };
-      memoizedTitulares.forEach(jugador => {
-        nuevosTiempos[jugador.id] = (nuevosTiempos[jugador.id] || 0) + 1;
-      });
-      return nuevosTiempos;
-    });
-  }, cronoEnPausa ? null : 1000);
-
-  useEffect(() => {
-    if (cronoEnPausa) {
-      setQuienTienePosesion(null);
+  
+  // Carga de datos inicial
+  const cargarDatos = useCallback(async () => {
+    if (!currentUser?.clubId || !eventoId) {
+      setError('No se ha podido determinar el club o el evento.');
+      setLoading(false);
       return;
     }
-    const interval = setInterval(() => {
-      if (quienTienePosesion) {
-        setPosesion(prev => ({
-          ...prev,
-          [quienTienePosesion]: prev[quienTienePosesion] + 1
-        }));
+    setLoading(true);
+    try {
+      const eventoRef = doc(db, 'clubes', currentUser.clubId, 'eventos', eventoId);
+      const eventoSnap = await getDoc(eventoRef);
+
+      if (!eventoSnap.exists()) {
+        setError('Evento no encontrado.');
+        setLoading(false);
+        return;
       }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [cronoEnPausa, quienTienePosesion]);
 
-  // --- Efecto para Inicializar la Evaluación por Clics ---
-  useEffect(() => {
-    // Si la vista cambia a 'evaluacion', no se ha evaluado aún, y las columnas están vacías,
-    // poblamos la columna de 'pendientes' con los jugadores convocados.
-    if (
-      vista === 'evaluacion' &&
-      !yaEvaluado &&
-      columnas.jugadores_pendientes.length === 0 &&
-      columnas.a_mejorar.length === 0 &&
-      columnas.correcto.length === 0 &&
-      columnas.buen_partido.length === 0 &&
-      columnas.destacado.length === 0
-    ) {
-      setColumnas(prev => ({ ...prev, jugadores_pendientes: convocados }));
+      const eventoData = { id: eventoSnap.id, ...eventoSnap.data() };
+      setEvento(eventoData);
+      if (eventoData.evaluado) setActiveTab('evaluacion');
+
+      if (!eventoData.equipoId) {
+        setError('El evento no tiene un equipo asignado.');
+        setLoading(false);
+        return;
+      }
+
+      const jugadoresRef = collection(db, 'clubes', currentUser.clubId, 'equipos', eventoData.equipoId, 'jugadores');
+      const jugadoresSnapshot = await getDocs(jugadoresRef);
+      const listaJugadores = jugadoresSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const idsConv = Array.isArray(eventoData.convocados) ? eventoData.convocados : [];
+      const convocadosData = listaJugadores.filter(j => idsConv.includes(j.id));
+      const noConvocadosData = listaJugadores.filter(j => !idsConv.includes(j.id));
+      setConvocados(convocadosData);
+      setNoConvocados(noConvocadosData);
+      
+      const titIds = Array.isArray(eventoData.alineacion_titular) ? eventoData.alineacion_titular : [];
+      const banqIds = Array.isArray(eventoData.banquillo) ? eventoData.banquillo : [];
+      
+      if (titIds.length > 0) {
+        const orden = ordenPosiciones[eventoData.formacion || '4-3-3'] || ordenPosiciones['4-3-3'];
+        const titularesConPosicion = convocadosData
+          .filter(j => titIds.includes(j.id))
+          .map((jugador, index) => ({ // CUIDADO: El index puede no ser fiable si el orden de titIds no es el de la formación
+            ...jugador,
+            posicionCampo: orden[index] || null // Asigna posición según el orden guardado
+          }));
+        setTitulares(titularesConPosicion);
+        setSuplentes(convocadosData.filter(j => !titIds.includes(j.id)));
+      } else {
+        setSuplentes(convocadosData);
+        setTitulares([]);
+      }
+    } catch (e) {
+      console.error('Error cargando datos del evento:', e);
+      setError('No se pudo cargar la información del evento.');
+    } finally {
+      setLoading(false);
     }
-  }, [vista, yaEvaluado, convocados, columnas]);
+  }, [eventoId, currentUser]);
 
-  // --- Funciones de Gestión ---
-  const moverJugador = (jugador, aConvocados) => {
-    if (yaEvaluado) { alert("No se puede modificar la convocatoria de un evento ya evaluado."); return; }
+  useEffect(() => { // Este useEffect llama a la función de carga.
+    cargarDatos();
+  }, [cargarDatos]);
+
+  // Sincroniza suplentes con convocados y titulares
+  useEffect(() => {
+    const idsTitulares = new Set(titulares.map(t => t.id));
+    setSuplentes(convocados.filter(j => !idsTitulares.has(j.id)));
+  }, [convocados, titulares]);
+
+  // --- Listener para Acciones en Tiempo Real ---
+  useEffect(() => {
+    if (!currentUser?.clubId || !eventoId) return;
+
+    const accionesRef = collection(db, 'clubes', currentUser.clubId, 'eventos', eventoId, 'acciones');
+    const q = query(accionesRef, orderBy('timestamp', 'asc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setAcciones(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => unsubscribe(); // Se desuscribe al desmontar el componente
+  }, [eventoId, currentUser]);
+
+  // --- Efecto para actualizar el marcador en tiempo real ---
+  useEffect(() => {
+    const golesLocal = acciones.filter(a => 
+      (a.tipo === 'GOL' && evento?.condicion === 'Local') || 
+      (a.tipo === 'GOL_EN_CONTRA' && evento?.condicion === 'Visitante')
+    ).length;
+
+    const golesVisitante = acciones.filter(a => 
+      (a.tipo === 'GOL' && evento?.condicion === 'Visitante') || 
+      (a.tipo === 'GOL_EN_CONTRA' && evento?.condicion === 'Local')
+    ).length;
+
+    setMarcador({ local: golesLocal, visitante: golesVisitante });
+  }, [acciones, evento]);
+
+  // --- Hook para persistir el estado del cronómetro en sessionStorage ---
+  useEffect(() => {
+    const timerStateKey = `timerState_${eventoId}`;
+    const storedState = sessionStorage.getItem(timerStateKey);
+    if (storedState) {
+      const { 
+        fase: storedFase, 
+        segundosAcumulados: storedSegundosAcumulados, 
+        segundosReloj: storedSegundosReloj, 
+        tiempoEnCampo: storedTiempo, 
+        enPausa: storedEnPausa 
+      } = JSON.parse(storedState);
+      
+      setFase(storedFase || 'preparacion');
+      setSegundosAcumulados(storedSegundosAcumulados || 0);
+      setSegundosReloj(storedSegundosReloj || 0);
+      setTiempoEnCampo(storedTiempo || {});
+      setEnPausa(storedEnPausa ?? true);
+    }
+
+    const handleBeforeUnload = () => {
+      sessionStorage.setItem(timerStateKey, JSON.stringify({
+        fase,
+        segundosAcumulados,
+        segundosReloj,
+        tiempoEnCampo,
+        enPausa: true, // Siempre guardar como pausado
+      }));
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      handleBeforeUnload();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventoId]); // Solo se ejecuta una vez al montar el componente
+
+
+  // --- Hook para el contador de minutos por jugador ---
+  useEffect(() => {
+    if (enPausa || fase === 'preparacion' || fase === 'finalizado') return;
+
+    const timer = setInterval(() => {
+      setSegundosReloj(prev => prev + 1);
+      setTiempoEnCampo(prev => {
+        const nuevoTiempo = { ...prev };
+        titulares.forEach(jugador => {
+          nuevoTiempo[jugador.id] = (nuevoTiempo[jugador.id] || 0) + 1;
+        });
+        return nuevoTiempo;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [enPausa, fase, titulares]);
+
+  // --- Funciones de utilidad ---
+  const formatearFecha = (f) => {
+    if (!f) return 'Fecha no disponible';
+    const d = f?.toDate ? f.toDate() : new Date(f);
+    return d.toLocaleString('es-ES', { dateStyle: 'full', timeStyle: 'short' });
+  };
+
+  // --- Funciones de gestión ---
+  const moverJugadorConvocatoria = (jugador, aConvocados) => {
+    if (evento?.evaluado) {
+      alert("No se puede modificar la convocatoria de un evento ya evaluado.");
+      return;
+    }
     if (aConvocados) {
-      setNoConvocados(noConvocados.filter(j => j.id !== jugador.id));
-      setConvocados([...convocados, jugador]);
+      setNoConvocados(prev => prev.filter(j => j.id !== jugador.id));
+      setConvocados(prev => [...prev, jugador]);
     } else {
-      setConvocados(convocados.filter(j => j.id !== jugador.id));
-      setNoConvocados([...noConvocados, jugador]);
+      setConvocados(prev => prev.filter(j => j.id !== jugador.id));
+      setNoConvocados(prev => [...prev, jugador]);
     }
   };
 
   const guardarConvocatoria = async () => {
+    const eventoRef = doc(db, 'clubes', currentUser.clubId, 'eventos', eventoId);
     try {
-      const convocadosIds = convocados.map(j => j.id);
-      const eventoDocRef = doc(db, 'eventos', eventoId);
-      
-      await updateDoc(eventoDocRef, { convocados: convocadosIds });
-
-      const batch = writeBatch(db);
-      plantilla.forEach(jugador => {
-        const jugadorDocRef = doc(db, 'jugadores', jugador.id);
-        const convocadoEstaVez = convocadosIds.includes(jugador.id);
-        const yaEstabaConvocado = (evento.convocados || []).includes(jugador.id);
-
-        if (convocadoEstaVez && !yaEstabaConvocado) {
-          batch.update(jugadorDocRef, { total_convocatorias: increment(1) });
-        } else if (!convocadoEstaVez && yaEstabaConvocado) {
-          batch.update(jugadorDocRef, { total_convocatorias: increment(-1) });
-        }
+      await updateDoc(eventoRef, {
+        convocados: convocados.map(j => j.id)
       });
-      
-      await batch.commit();
-      
       alert("Convocatoria guardada con éxito.");
-      window.location.reload();
 
-    } catch (e) {
-      console.error("Error al guardar la convocatoria: ", e);
-      alert("Hubo un error al guardar la convocatoria. Por favor, inténtalo de nuevo.");
+      // Actualiza el estado local para la pestaña de alineación
+      setSuplentes(convocados);
+      setTitulares([]); // Limpia los titulares para una nueva configuración
+      setJugadorParaIntercambio(null); // Limpia la selección
+      setActiveTab('alineacion'); // Opcional: Mueve al usuario a la siguiente pestaña
+
+    } catch (err) {
+      console.error("Error al guardar convocatoria:", err);
+      setError("No se pudo guardar la convocatoria.");
     }
   };
 
-  // --- LÓGICA DE ALINEACIÓN CORREGIDA ---
-  const gestionarAlineacion = (jugador, esParaEntrar) => {
-    const ordenDeFormacion = ordenPosiciones[formacion] || ordenPosiciones['4-3-3'];
-
-    if (esParaEntrar) {
-      // Mover de suplentes a titulares
-      if (titulares.length >= 11) {
-        alert("El campo está lleno (11 jugadores). Debes sacar a un titular antes de meter a un suplente.");
-        return;
-      }
-
-      // Encontrar la primera posición táctica libre
-      const posicionAsignada = ordenDeFormacion.find(pos => !titulares.some(t => t.posicionCampo === pos));
-
-      if (!posicionAsignada) {
-        // Esto no debería pasar si hay menos de 11 jugadores, pero es una salvaguarda.
-        alert("No se encontró una posición libre en la formación. Intenta cambiar de formación.");
-        return;
-      }
-
-      const jugadorConPosicion = { ...jugador, posicionCampo: posicionAsignada };
-
-      setSuplentes(prev => prev.filter(j => j.id !== jugador.id));
-      setTitulares(prev => [...prev, jugadorConPosicion]);
-
-    } else {
-      // Mover de titulares a suplentes
-      // Creamos una copia del jugador sin la posición para asegurar que el estado se actualiza correctamente.
-      const jugadorSinPosicion = { ...jugador };
-      delete jugadorSinPosicion.posicionCampo;
-
-      setTitulares(prev => prev.filter(j => j.id !== jugador.id));
-      setSuplentes(prev => [...prev, jugadorSinPosicion].sort((a, b) => a.nombre.localeCompare(b.nombre)));
-    }
-  };
-
-  const iniciarSeleccionJugador = (tipoAccion) => {
-    setSeleccionandoJugador({ tipo: tipoAccion });
-  };
-
-  const finalizarSeleccionJugador = async (jugador) => {
-    if (!seleccionandoJugador) return;
-    try {
-      // --- LÓGICA DE MINUTOS CORREGIDA ---
-      const minutosPrimerTiempo = Math.ceil(tiempoPrimeraParte / 60);
-      const tiempoActual = fasePartido === 'primer_tiempo' ? tiempoPrimeraParte : tiempoSegundaParte + tiempoPrimeraParte;
-      const minutoDeAccion = Math.ceil(tiempoActual / 60); // Minuto absoluto del partido
-      const accion = {
-        tipo: seleccionandoJugador.tipo,
-        jugador_principal_id: jugador.id,
-        nombre_jugador: `${jugador.nombre} ${jugador.apellidos}`,
-        minuto: minutoDeAccion,
-        fase: fasePartido,
-      };
-      if (accion.tipo === 'GOL') {
-        setStatsPartido(prevStats => {
-          const esLocal = evento.condicion === 'Local';
-          return {
-            ...prevStats,
-            goles_local: esLocal ? prevStats.goles_local + 1 : prevStats.goles_local,
-            goles_visitante: !esLocal ? prevStats.goles_visitante + 1 : prevStats.goles_visitante,
-          };
-        });
-      }
-      await registrarAccion(eventoId, accion);
-    } catch (error) {
-      console.error("Error al registrar la acción:", error);
-    } finally {
-      setSeleccionandoJugador(null);
-    }
-  };
-
-  const handleEliminarAccion = async (accionId) => {
-    if (window.confirm("¿Seguro que quieres eliminar esta acción?")) {
-      try {
-        await eliminarAccion(eventoId, accionId);
-      } catch (error) {
-        console.error("Error al eliminar la acción:", error);
-      }
-    }
-  };
-
-  const sincronizarAccionesConEvaluacion = async () => {
-    const q = query(collection(db, 'eventos', eventoId, 'acciones_partido'));
-    const accionesSnapshot = await getDocs(q);
-    const accionesDelPartido = accionesSnapshot.docs.map(doc => doc.data());
-    const totalesPorJugador = {};
-    convocados.forEach(jugador => {
-      totalesPorJugador[jugador.id] = { goles: 0, asistencias: 0, tarjetas_amarillas_partido: 0, tarjetas_rojas_partido: 0, minutos_jugados: 0 };
-    });
-    for (const accion of accionesDelPartido) {
-      const jugadorId = accion.jugador_principal_id;
-      if (!totalesPorJugador[jugadorId]) continue;
-      switch (accion.tipo) {
-        case 'GOL': totalesPorJugador[jugadorId].goles += 1; break;
-        case 'ASISTENCIA': totalesPorJugador[jugadorId].asistencias += 1; break;
-        case 'AMARILLA': totalesPorJugador[jugadorId].tarjetas_amarillas_partido += 1; break;
-        case 'ROJA': totalesPorJugador[jugadorId].tarjetas_rojas_partido += 1; break;
-        default: break;
-      }
-    }
-    for (const jugadorId in tiempoEnCampo) {
-      if (totalesPorJugador[jugadorId]) {
-        totalesPorJugador[jugadorId].minutos_jugados = Math.round(tiempoEnCampo[jugadorId] / 60);
-      }
-    }
-    setEvaluaciones(evaluacionesPrevias => {
-      const nuevasEvaluaciones = { ...evaluacionesPrevias };
-      for (const jugadorId in totalesPorJugador) {
-        nuevasEvaluaciones[jugadorId] = { ...evaluacionesPrevias[jugadorId], ...totalesPorJugador[jugadorId] };
-      }
-      return nuevasEvaluaciones;
-    });
-  };
-
-  // --- Funciones de Evaluación por Clics ---
-  const moverJugadorAColumna = (columnaDestinoId) => {
-    if (!jugadorActivoId) {
-      alert("Por favor, selecciona primero un jugador haciendo clic en su nombre.");
+  const agregarTitular = (jugador) => {
+    const ordenFormacion = ordenPosiciones[formacion] || ordenPosiciones['4-3-3'];
+    const maxTitulares = ordenFormacion.length;
+    if (titulares.length >= maxTitulares) {
+      alert(`Máximo ${maxTitulares} titulares para la formación ${formacion}. Reemplaza a un jugador existente.`);
       return;
     }
-    let jugadorAMover = null;
-    let columnaOrigenId = null;
-    for (const colId in columnas) {
-      const jugadorEncontrado = columnas[colId].find(j => j.id === jugadorActivoId);
-      if (jugadorEncontrado) {
-        jugadorAMover = jugadorEncontrado;
-        columnaOrigenId = colId;
-        break;
-      }
+
+    const posicionesOcupadas = new Set(titulares.map(t => t.posicionCampo));
+    const posLibre = ordenFormacion.find(p => !posicionesOcupadas.has(p));
+
+    if (!posLibre) {
+      alert('No hay posiciones libres en la formación actual.');
+      return;
     }
-    if (!jugadorAMover || columnaOrigenId === columnaDestinoId) return;
+    
+    const jugadorConPosicion = { ...jugador, posicionCampo: posLibre };
+    setTitulares(prev => 
+      [...prev, jugadorConPosicion].sort((a, b) => ordenFormacion.indexOf(a.posicionCampo) - ordenFormacion.indexOf(b.posicionCampo))
+    );
+    // setSuplentes(prev => prev.filter(s => s.id !== jugador.id)); // Esto ya lo gestiona el useEffect de sincronización
+  };
 
-    setColumnas(prevColumnas => {
-      const nuevasColumnas = { ...prevColumnas };
-      nuevasColumnas[columnaOrigenId] = nuevasColumnas[columnaOrigenId].filter(j => j.id !== jugadorActivoId);
-      nuevasColumnas[columnaDestinoId] = [...nuevasColumnas[columnaDestinoId], jugadorAMover];
-      return nuevasColumnas;
-    });
-
-    if (valoracionesPorCategoria[columnaDestinoId]) {
-      const nuevasNotas = valoracionesPorCategoria[columnaDestinoId];
-      setEvaluaciones(prevEvals => ({
-        ...prevEvals,
-        [jugadorActivoId]: { ...(prevEvals[jugadorActivoId] || {}), ...nuevasNotas },
-      }));
+  const quitarTitular = (jugador) => {
+    // Si hay un jugador del banquillo seleccionado para intercambio, realizamos la sustitución
+    if (jugadorParaIntercambio) {
+      // Solo permitimos sustitución si el seleccionado es un suplente
+      if (!jugadorParaIntercambio.posicionCampo) {
+        const posTitular = jugador.posicionCampo;
+        const nuevoTitular = { ...jugadorParaIntercambio, posicionCampo: posTitular };
+        const exTitular = { ...jugador };
+        delete exTitular.posicionCampo;
+  
+        const orden = ordenPosiciones[formacion] || [];
+        setTitulares(prev => 
+          prev.map(t => t.id === jugador.id ? nuevoTitular : t)
+              .sort((a, b) => orden.indexOf(a.posicionCampo) - orden.indexOf(b.posicionCampo))
+        );
+        // setSuplentes(prev => [...prev.filter(s => s.id !== jugadorParaIntercambio.id), exTitular]); // Gestionado por useEffect
+        setJugadorParaIntercambio(null);
+      } else {
+        // Si el seleccionado es otro titular, hacemos un intercambio de posiciones
+        const pos1 = jugador.posicionCampo;
+        const pos2 = jugadorParaIntercambio.posicionCampo;
+        const orden = ordenPosiciones[formacion] || [];
+        setTitulares(prev => prev.map(t => {
+          if (t.id === jugador.id) return { ...t, posicionCampo: pos2 };
+          if (t.id === jugadorParaIntercambio.id) return { ...t, posicionCampo: pos1 };
+          return t;
+        }).sort((a, b) => orden.indexOf(a.posicionCampo) - orden.indexOf(b.posicionCampo)));
+        setJugadorParaIntercambio(null); // Limpiamos la selección
+      }
+    } else {
+      // Si no hay jugador para intercambio, la acción es seleccionar al titular
+      // o moverlo al banquillo si se hace desde la pestaña de alineación.
+      if (activeTab === 'alineacion') {
+      const jugadorSinPosicion = { ...jugador };
+      delete jugadorSinPosicion.posicionCampo;
+      setTitulares(prev => prev.filter(t => t.id !== jugador.id));
+      // setSuplentes(prev => [...prev, jugadorSinPosicion]); // Gestionado por useEffect
+      } else {
+        // En modo "En Vivo", un clic en un titular lo selecciona para un posible intercambio
+        seleccionarParaIntercambio(jugador);
+      }
     }
   };
 
-  const handleEvalChange = (jugadorId, campo, valor) => {
+  const seleccionarParaIntercambio = (jugador) => {
+    // Si se vuelve a hacer clic en el mismo jugador, se deselecciona
+    setJugadorParaIntercambio(prev => (prev?.id === jugador.id ? null : jugador));
+  };
+
+  const guardarAlineacion = async () => {
+    const eventoRef = doc(db, 'clubes', currentUser.clubId, 'eventos', eventoId);
+    try {
+      await updateDoc(eventoRef, {
+        alineacion_titular: titulares.map(j => j.id),
+        banquillo: suplentes.map(j => j.id),
+      });
+      alert("Alineación guardada con éxito.");
+    } catch (err) {
+      console.error("Error al guardar alineación:", err);
+      setError("No se pudo guardar la alineación.");
+    }
+  };
+
+  // --- Lógica para "En Vivo" ---
+  const minutoActual = Math.floor((segundosAcumulados + segundosReloj) / 60);
+
+  const cambiarFase = (nuevaFase) => {
+    setFase(nuevaFase);
+    if (nuevaFase === 'descanso' || nuevaFase === 'finalizado') {
+      setSegundosAcumulados(prev => prev + segundosReloj);
+      setSegundosReloj(0);
+      setEnPausa(true);
+      if (nuevaFase === 'finalizado') sincronizarStatsParaEvaluacion(); // ¡SINCRONIZACIÓN AUTOMÁTICA!
+    }
+    if (nuevaFase === 'primer_tiempo' || nuevaFase === 'segundo_tiempo') {
+      setEnPausa(false);
+    }
+  };
+
+  const registrarAccion = async (jugador, tipoAccionOverride = null) => {
+    const tipoDeAccion = tipoAccionOverride || seleccionandoAccion?.tipo;
+    if (!tipoDeAccion) return; // Si no hay acción, no hacemos nada
+
+    try {
+      const accionesRef = collection(db, 'clubes', currentUser.clubId, 'eventos', eventoId, 'acciones');
+      await addDoc(accionesRef, {
+        tipo: tipoDeAccion,
+        minuto: minutoActual,
+        jugador_id: jugador.id, // Usar jugador_id para consistencia
+        jugador_nombre: `${jugador.nombre} ${jugador.apellidos}`,
+        timestamp: new Date(),
+      });
+    } catch (err) {
+      console.error("Error al registrar acción:", err);
+      setError("No se pudo registrar la acción.");
+    } finally {
+      setSeleccionandoAccion(null); // Cierra el modo selección
+    }
+  };
+
+  const registrarGolEnContra = async () => {
+    if (window.confirm("¿Confirmas que el equipo rival ha marcado un gol?")) {
+      // Llamamos a registrarAccion con un objeto jugador "ficticio"
+      // y el tipo de acción GOL_EN_CONTRA.
+      // El `seleccionandoAccion` se ignora gracias a `tipoAccionOverride`.
+      const rival = { id: 'rival', nombre: 'Equipo', apellidos: 'Rival' };
+      // Para que funcione, debemos simular que hay una acción seleccionada.
+      setSeleccionandoAccion({ tipo: 'GOL_EN_CONTRA' }); // Simula la selección
+      await registrarAccion(rival, 'GOL_EN_CONTRA');
+    }
+  };
+
+  
+  // Sobrescribimos la función onJugadorClick del campo para que registre acciones
+  const handleJugadorClickEnVivo = (jugador) => {
+    if (seleccionandoAccion) {
+      // Si estamos registrando una acción (gol, tarjeta, etc.), se la asignamos al jugador.
+      registrarAccion(jugador);
+    } else {
+      // Si no hay una acción seleccionada, el clic sirve para intercambiar jugadores.
+      // Usamos la misma lógica que en la pestaña de alineación.
+      quitarTitular(jugador);
+      // La siguiente línea es solo para depuración, puedes eliminarla si quieres.
+      console.log("Jugador seleccionado:", jugador.nombre);
+    }
+  };
+
+  const sincronizarStatsParaEvaluacion = () => {
+    const statsPorJugador = {};
+    convocados.forEach(jugador => {
+      statsPorJugador[jugador.id] = { 
+        goles: 0, 
+        asistencias: 0, 
+        minutos_jugados: 0,
+        momentum: 0, // Inicializamos el momentum
+        ...(evaluaciones[jugador.id] || {}),
+      };
+    });
+
+    acciones.forEach(accion => {
+      if (accion.tipo === 'GOL' && statsPorJugador[accion.jugador_id]) {
+        statsPorJugador[accion.jugador_id].goles += 1;
+      }
+      if (accion.tipo === 'ASISTENCIA' && statsPorJugador[accion.jugador_id]) {
+        statsPorJugador[accion.jugador_id].asistencias += 1;
+      }
+    });
+
+    Object.keys(tiempoEnCampo).forEach(jugadorId => {
+      if (statsPorJugador[jugadorId]) {
+        statsPorJugador[jugadorId].minutos_jugados = Math.round(tiempoEnCampo[jugadorId] / 60);
+      }
+    });
+
+    setEvaluaciones(statsPorJugador);
+    setActiveTab('evaluacion');
+    if (fase !== 'finalizado') setActiveTab('evaluacion'); // Solo cambia de pestaña si se hace clic manualmente
+  };
+
+  const handleMomentumChange = (jugadorId, cambio) => {
     setEvaluaciones(prev => ({
       ...prev,
-      [jugadorId]: { ...prev[jugadorId], [campo]: Number(valor) },
+      [jugadorId]: {
+        ...prev[jugadorId],
+        momentum: (prev[jugadorId]?.momentum || 0) + cambio,
+      }
     }));
   };
 
-  const guardarEvaluacionesYStats = async () => {
-    if (Object.keys(evaluaciones).length === 0) { alert("No has introducido ninguna evaluación."); return; }
-    const batch = writeBatch(db);
-    for (const jugadorId in evaluaciones) {
-      const datosEvaluacion = evaluaciones[jugadorId];
-      if (Object.keys(datosEvaluacion).length === 0) continue;
-      const evalDocRef = doc(collection(db, 'evaluaciones'));
-      batch.set(evalDocRef, { id_jugador: jugadorId, id_evento: eventoId, fecha_evento: evento.fecha, teamId: currentUser.teamId, ...datosEvaluacion });
-      const jugadorDocRef = doc(db, 'jugadores', jugadorId);
-      const jugadorDoc = await getDoc(jugadorDocRef);
-      if (jugadorDoc.exists()) {
-        const datosJugador = jugadorDoc.data();
-        const updates = {
-          total_goles: increment(datosEvaluacion.goles || 0),
-          total_asistencias: increment(datosEvaluacion.asistencias || 0),
-          total_minutos_jugados: increment(datosEvaluacion.minutos_jugados || 0),
-          total_tarjetas_amarillas: increment(datosEvaluacion.tarjetas_amarillas_partido || 0),
-          total_tarjetas_rojas: increment(datosEvaluacion.tarjetas_rojas_partido || 0),
-        };
-        const eventosEvaluadosPrevios = datosJugador.eventos_evaluados || 0;
-        const nuevoTotalEventosEvaluados = eventosEvaluadosPrevios + 1;
-        updates.promedio_tecnica = ((datosJugador.promedio_tecnica || 0) * eventosEvaluadosPrevios + (datosEvaluacion.tecnica || 0)) / nuevoTotalEventosEvaluados;
-        updates.promedio_fisico = ((datosJugador.promedio_fisico || 0) * eventosEvaluadosPrevios + (datosEvaluacion.fisico || 0)) / nuevoTotalEventosEvaluados;
-        updates.promedio_tactica = ((datosJugador.promedio_tactica || 0) * eventosEvaluadosPrevios + (datosEvaluacion.tactica || 0)) / nuevoTotalEventosEvaluados;
-        updates.promedio_actitud = ((datosJugador.promedio_actitud || 0) * eventosEvaluadosPrevios + (datosEvaluacion.actitud || 0)) / nuevoTotalEventosEvaluados;
-        updates.eventos_evaluados = nuevoTotalEventosEvaluados;
-        updates.valoracion_general_promedio = (updates.promedio_tecnica + updates.promedio_fisico + updates.promedio_tactica + updates.promedio_actitud) / 4;
-        batch.update(jugadorDocRef, updates);
-      }
+  const guardarEvaluaciones = async () => {
+    if (Object.keys(evaluaciones).length === 0) {
+      alert("Primero debes ir a la pestaña 'Evaluación' para generar los datos.");
+      return;
     }
-    
-    let sumaDePromediosColectivos = 0;
-    let jugadoresEvaluadosCount = 0;
-    Object.values(evaluaciones).forEach(datosEvaluacion => {
-        const promedioIndividualColectivo = ((datosEvaluacion.tecnica || 0) + (datosEvaluacion.fisico || 0) + (datosEvaluacion.tactica || 0) + (datosEvaluacion.actitud || 0)) / 4;
-        if (promedioIndividualColectivo > 0) {
-          sumaDePromediosColectivos += promedioIndividualColectivo;
-          jugadoresEvaluadosCount++;
-        }
-    });
-    const valoracionColectivaFinal = jugadoresEvaluadosCount > 0 ? sumaDePromediosColectivos / jugadoresEvaluadosCount : 0;
-    let puntos = 0;
-    let goles_favor_reales, goles_contra_reales;
-    if (evento.condicion === 'Local') {
-      goles_favor_reales = statsPartido.goles_local;
-      goles_contra_reales = statsPartido.goles_visitante;
-    } else {
-      goles_favor_reales = statsPartido.goles_visitante;
-      goles_contra_reales = statsPartido.goles_local;
-    }
-    if (goles_favor_reales > goles_contra_reales) {
-      puntos = 3;
-    } else if (goles_favor_reales === goles_contra_reales) {
-      puntos = 1;
+    if (!window.confirm("¿Estás seguro de guardar las evaluaciones? Esta acción marcará el partido como finalizado y no se podrá modificar.")) {
+      return;
     }
 
-    const eventoDocRef = doc(db, 'eventos', eventoId);
-    batch.update(eventoDocRef, {
-      goles_local: statsPartido.goles_local,
-      goles_visitante: statsPartido.goles_visitante,
-      goles_favor: goles_favor_reales,
-      goles_contra: goles_contra_reales,
-      puntos_obtenidos: puntos,
-      valoracion_colectiva: valoracionColectivaFinal,
-      posesion_nuestra: posesion.nuestra,
-      posesion_rival: posesion.rival,
-    });
-
-    await batch.commit();
-    alert("¡Evaluaciones y estadísticas guardadas!");
-    window.location.reload();
-  };
-
-    const eliminarEvento = async () => {
-    if (!window.confirm("¿Seguro que quieres eliminar este evento y todos sus datos asociados? Esta acción es irreversible.")) return;
-
-    console.log("Iniciando eliminación del evento:", eventoId);
-    setLoading(true); // Muestra un indicador de carga
-
+    setLoading(true);
     try {
-      // 1. Eliminar las evaluaciones asociadas
-      console.log("Buscando evaluaciones para eliminar...");
-      const qEvaluaciones = query(collection(db, 'evaluaciones'), where('id_evento', '==', eventoId));
-      const evaluacionesSnapshot = await getDocs(qEvaluaciones);
-      if (!evaluacionesSnapshot.empty) {
-        console.log(`Encontradas ${evaluacionesSnapshot.size} evaluaciones. Eliminando...`);
-        const deletePromises = evaluacionesSnapshot.docs.map(doc => deleteDoc(doc.ref));
-        await Promise.all(deletePromises);
-        console.log("Evaluaciones eliminadas.");
-      } else {
-        console.log("No se encontraron evaluaciones para este evento.");
+      const batch = writeBatch(db);
+
+      let sumaPuntuaciones = 0;
+      let numEvaluados = 0;
+
+      for (const jugadorId in evaluaciones) {
+        const evaluacionJugador = evaluaciones[jugadorId];
+        const puntuacionBase = 6;
+        let puntuacionFinal = puntuacionBase + (evaluacionJugador.momentum || 0);
+        puntuacionFinal = Math.max(1, Math.min(10, puntuacionFinal)); // Clamp entre 1 y 10
+        sumaPuntuaciones += puntuacionFinal;
+        numEvaluados++;
+
+        // --- CORRECCIÓN ---
+        // Guardamos la evaluación dentro de una subcolección del evento actual.
+        // Esto respeta la estructura de datos y las reglas de seguridad.
+        const evalDocRef = doc(db, 'clubes', currentUser.clubId, 'eventos', eventoId, 'evaluaciones', jugadorId);
+        batch.set(evalDocRef, { // Usamos set con el ID del jugador para evitar duplicados si se guarda varias veces.
+          jugadorId: jugadorId,
+          eventoId: eventoId,
+          clubId: currentUser.clubId,
+          equipoId: evento.equipoId,
+          fecha_evento: evento.fecha,
+          puntuacion: puntuacionFinal,
+          goles: evaluacionJugador.goles || 0,
+          asistencias: evaluacionJugador.asistencias || 0,
+          minutos_jugados: evaluacionJugador.minutos_jugados || 0,
+        });
+
+        const jugadorDocRef = doc(db, 'clubes', currentUser.clubId, 'equipos', evento.equipoId, 'jugadores', jugadorId);
+        batch.update(jugadorDocRef, {
+          total_goles: increment(evaluacionJugador.goles || 0),
+          total_asistencias: increment(evaluacionJugador.asistencias || 0),
+          minutos_jugados: increment(evaluacionJugador.minutos_jugados || 0),
+          // --- ¡NUEVO! ---
+          // Calculamos y actualizamos la valoración media del jugador.
+          partidos_jugados: increment(1),
+          suma_valoraciones: increment(puntuacionFinal),
+          // La valoración media se puede calcular en el frontend: suma_valoraciones / partidos_jugados
+        });
       }
 
-      // 2. Eliminar las acciones del partido (subcolección)
-      console.log("Buscando acciones del partido para eliminar...");
-      const qAcciones = query(collection(db, 'eventos', eventoId, 'acciones_partido'));
-      const accionesSnapshot = await getDocs(qAcciones);
-      if (!accionesSnapshot.empty) {
-        console.log(`Encontradas ${accionesSnapshot.size} acciones. Eliminando...`);
-        const deletePromises = accionesSnapshot.docs.map(doc => deleteDoc(doc.ref));
-        await Promise.all(deletePromises);
-        console.log("Acciones del partido eliminadas.");
-      } else {
-        console.log("No se encontraron acciones para este evento.");
-      }
+      const valoracionColectiva = numEvaluados > 0 ? (sumaPuntuaciones / numEvaluados) : 0;
 
-      // 3. Finalmente, eliminar el documento del evento principal
-      console.log("Eliminando el documento principal del evento...");
-      const eventoDocRef = doc(db, 'eventos', eventoId);
-      await deleteDoc(eventoDocRef);
-      console.log("Evento principal eliminado.");
+      const eventoRef = doc(db, 'clubes', currentUser.clubId, 'eventos', eventoId);
+      batch.update(eventoRef, {
+        evaluado: true,
+        marcador_local: marcador.local,
+        marcador_visitante: marcador.visitante,
+        valoracion_colectiva: valoracionColectiva, // ¡Guardamos la nueva valoración!
+      });
 
-      alert("El evento ha sido eliminado con éxito.");
-      navigate('/eventos');
-
-    } catch (error) {
-      console.error("ERROR DETALLADO AL ELIMINAR:", error);
-      alert(`Ocurrió un error al intentar eliminar el evento. Revisa la consola para más detalles. (Error: ${error.code})`);
+      await batch.commit();
+      alert("¡Evaluaciones y estadísticas guardadas con éxito!");
+      cargarDatos();
+      cargarDatos(); // ¡RECARGA DE DATOS!
+    } catch (err) {
+      console.error("Error al guardar evaluaciones:", err);
+      setError("No se pudieron guardar las evaluaciones.");
+    } finally {
       setLoading(false);
     }
   };
 
-
-  // --- Renderizado del Componente ---
-  if (loading) return <div className="card">Cargando evento...</div>;
-  if (error) return <div className="card auth-error">{error}</div>;
-  return (
+  const renderEvaluacion = () => (
     <div>
-      <div className="detalle-evento-header">
-        <h1>{evento.tipo}: {evento.descripcion}</h1>
-        <p>{new Date(evento.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} ({evento.condicion})</p>
-      </div>
+      <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Evaluación del Partido</h3>
+      {evento.evaluado ? (
+        <div className="text-center p-8 bg-green-50 dark:bg-green-900/20 rounded-lg">
+          <h4 className="font-bold text-green-700 dark:text-green-300">Este evento ya ha sido evaluado.</h4>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Las evaluaciones han sido guardadas y las estadísticas de los jugadores actualizadas.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <h4 className="font-semibold text-lg mb-2">Confirmar y Guardar Evaluaciones</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Las evaluaciones de "momentum" se han realizado en la pestaña "En Vivo".
+              Aquí puedes revisar los datos sincronizados (goles, asistencias, minutos) y, cuando estés listo,
+              guardar todas las evaluaciones para finalizar el partido.
+            </p>
+            
+            {/* --- INICIO: Tabla de Resumen de Evaluaciones --- */}
+            <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+              <div className="grid grid-cols-6 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase bg-gray-100 dark:bg-gray-800">
+                <div className="col-span-2 p-2">Jugador</div>
+                <div className="p-2 text-center">Momentum</div>
+                <div className="p-2 text-center">Nota Final</div>
+                <div className="p-2 text-center">Goles</div>
+                <div className="p-2 text-center">Mins</div>
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                {convocados.map(jugador => {
+                  const evaluacionJugador = evaluaciones[jugador.id] || {};
+                  const momentum = evaluacionJugador.momentum || 0;
+                  const puntuacionBase = 6;
+                  let puntuacionFinal = puntuacionBase + momentum;
+                  puntuacionFinal = Math.max(1, Math.min(10, puntuacionFinal));
 
-      <div className="botones-vista-evento">
-        <button onClick={() => setVista('convocatoria')} className={vista === 'convocatoria' ? 'active' : ''}>
-          1. Convocatoria
-        </button>
-        
-        {evento?.convocados?.length > 0 && !yaEvaluado && (<button onClick={() => setVista('en_vivo')} className={vista === 'en_vivo' ? 'active' : ''}>
-            2. Seguimiento en Vivo
+                  return (
+                    <div key={jugador.id} className="grid grid-cols-6 items-center border-t border-gray-200 dark:border-gray-600 text-sm">
+                      <div className="col-span-2 p-2 font-medium">
+                        <span className="text-gray-500 mr-2">#{jugador.numero_camiseta}</span>
+                        {jugador.apodo || jugador.nombre}
+                      </div>
+                      <div className={`p-2 text-center font-bold ${momentum > 0 ? 'text-green-600' : momentum < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                        {momentum > 0 ? `+${momentum}` : momentum}
+                      </div>
+                      <div className="p-2 text-center font-black text-lg text-blue-600 dark:text-blue-400">{puntuacionFinal}</div>
+                      <div className="p-2 text-center">{evaluacionJugador.goles || 0}</div>
+                      <div className="p-2 text-center">{evaluacionJugador.minutos_jugados || 0}'</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {/* --- FIN: Tabla de Resumen de Evaluaciones --- */}
+          </div>
+          <button onClick={guardarEvaluaciones} className="w-full bg-green-600 text-white py-2.5 rounded-md hover:bg-green-700 transition-colors font-semibold">
+            Guardar Todas las Evaluaciones y Finalizar
           </button>
-        )}
-        
-        <button onClick={() => {
-          if (!yaEvaluado) {
-            sincronizarAccionesConEvaluacion();
-          }
-          setVista('evaluacion');
-        }} className={vista === 'evaluacion' ? 'active' : ''}>
-          {evento?.convocados?.length > 0 && !yaEvaluado ? '3. Evaluación' : '2. Evaluación'}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderConvocatoria = () => (
+    <div>
+      <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Gestión de Convocatoria</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Columna de No Convocados */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <h4 className="font-bold mb-2 text-gray-800 dark:text-gray-200">Disponibles ({noConvocados.length})</h4>
+          <ul className="space-y-2 max-h-96 overflow-y-auto">
+            {noConvocados.map(j => (
+              <li key={j.id} className="flex justify-between items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
+                <span className="text-sm">#{j.numero_camiseta} {j.nombre} {j.apellidos}</span>
+                <button onClick={() => moverJugadorConvocatoria(j, true)} className="text-blue-500 hover:text-blue-700 text-sm font-semibold">Añadir</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+        {/* Columna de Convocados */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <h4 className="font-bold mb-2 text-gray-800 dark:text-gray-200">Convocados ({convocados.length})</h4>
+          <ul className="space-y-2 max-h-96 overflow-y-auto">
+            {convocados.map(j => (
+              <li key={j.id} className="flex justify-between items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
+                <span className="text-sm">#{j.numero_camiseta} {j.nombre} {j.apellidos}</span>
+                <button onClick={() => moverJugadorConvocatoria(j, false)} className="text-red-500 hover:text-red-700 text-sm font-semibold">Quitar</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <div className="mt-6">
+        <button onClick={guardarConvocatoria} className="w-full bg-blue-600 text-white py-2.5 rounded-md hover:bg-blue-700 transition-colors font-semibold">
+          Guardar Convocatoria
         </button>
       </div>
+    </div>
+  );
 
-      {vista === 'convocatoria' && (
-        <div className="card">
-          <h2>Gestión de Convocatoria</h2>
-          <div className="convocatoria-grid">
-            <div><h3>Plantilla ({noConvocados.length})</h3><div className="lista-jugadores-convocatoria">{noConvocados.map(j => <div key={j.id} onClick={() => currentUser?.rol === 'administrador' && moverJugador(j, true)} className={`item-jugador ${currentUser?.rol === 'administrador' ? 'clickable' : ''}`}>{j.nombre} {j.apellidos}</div>)}</div></div>
-            <div><h3>Convocados ({convocados.length})</h3><div className="lista-jugadores-convocatoria">{convocados.map(j => <div key={j.id} onClick={() => currentUser?.rol === 'administrador' && moverJugador(j, false)} className={`item-jugador convocado ${currentUser?.rol === 'administrador' ? 'clickable' : ''}`}>{j.nombre} {j.apellidos}</div>)}</div></div>
-          </div>
-          {currentUser?.rol === 'administrador' && !yaEvaluado && <button onClick={guardarConvocatoria} className="btn-full-width">Guardar Convocatoria</button>}
-        </div>
-      )}
-
-      
-      {vista === 'en_vivo' && (
-        <div className="card">
-          <h2>Seguimiento en Vivo</h2>
-          
-          {/* --- Cronómetro y Controles de Fase --- */}
-          <div className="cronometro-container">
-            <Cronometro 
-              enPausa={cronoEnPausa} 
-              onTiempoActualizado={(segundos) => fasePartido === 'primer_tiempo' ? setTiempoPrimeraParte(segundos) : setTiempoSegundaParte(segundos)} 
-              fase={fasePartido} 
-            />
-            <div className="cronometro-controles">
-              {fasePartido === 'preparacion' && (
-                <button className="btn-crono-control" onClick={() => { setFasePartido('primer_tiempo'); setCronoEnPausa(false); }} disabled={titulares.length < 11}>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="24" height="24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" /></svg>
-                  <span>Iniciar 1er Tiempo</span>
-                </button>
-              )}
-              {fasePartido === 'primer_tiempo' && (
-                <button className="btn-crono-control" onClick={() => { setFasePartido('descanso'); setCronoEnPausa(true); }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="24" height="24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25v13.5m-6-13.5v13.5" /></svg>
-                  <span>Finalizar 1er Tiempo</span>
-                </button>
-              )}
-              {fasePartido === 'descanso' && (
-                <button className="btn-crono-control" onClick={() => { setFasePartido('segundo_tiempo'); setCronoEnPausa(false); }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="24" height="24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" /></svg>
-                  <span>Iniciar 2do Tiempo</span>
-                </button>
-              )}
-              {fasePartido === 'segundo_tiempo' && (
-                <button className="btn-crono-control" onClick={() => { setFasePartido('finalizado'); setCronoEnPausa(true); sincronizarAccionesConEvaluacion(); setVista('evaluacion'); }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="24" height="24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z" /></svg>
-                  <span>Finalizar y Evaluar</span>
-                </button>
-              )}
-            </div>
-          </div>
-          
-          {/* --- Contenido Principal de la Vista en Vivo --- */}
-          {fasePartido === 'preparacion' ? (
-            // --- VISTA DE PREPARACIÓN (Definir Alineación) ---
-            <div>
-              <h3>Definir Alineación y Táctica</h3>
-              <div style={{ marginBottom: '20px' }}>
-                <label htmlFor="formacion-select" style={{ marginRight: '10px' }}>Formación:</label>
-                <select id="formacion-select" value={formacion} onChange={e => setFormacion(e.target.value)}>
-                  <option value="4-3-3">4-3-3</option>
-                  <option value="4-4-2">4-4-2</option>
-                  <option value="4-2-3-1">4-2-3-1</option>
-                  <option value="3-5-2">3-5-2</option>
-                  <option value="3-4-3">3-4-3</option>
-                </select>
-              </div>
-              <div className="convocatoria-grid">
-                <div>
-                  <h3>Suplentes ({suplentes.length})</h3>
-                  <div className="lista-jugadores-convocatoria">
-                    {suplentes.map(j => (<div key={j.id} onClick={() => gestionarAlineacion(j, true)} className="item-jugador clickable">{j.nombre} {j.apellidos}</div>))}
-                  </div>
-                </div>
-                <div>
-                  <h3>Titulares ({titulares.length})</h3>
-                  <div className="lista-jugadores-convocatoria">
-                    {titulares.map(j => (<div key={j.id} onClick={() => gestionarAlineacion(j, false)} className="item-jugador titular clickable">{j.nombre} {j.apellidos}</div>))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            // --- VISTA DE PARTIDO EN CURSO ---
-            <div className="en-vivo-container">
-              {/* --- Columna Izquierda (Paneles de Control) --- */}
-              <div className="en-vivo-columna-izquierda">
-                {seleccionandoJugador ? (
-                  <div className="card seleccion-jugador-card">
-                    <h3>Selecciona el jugador para: <strong>{seleccionandoJugador.tipo}</strong></h3>
-                    <div className="lista-jugadores-convocatoria">
-                      {titulares.map(jugador => (
-                        <div key={jugador.id} className="item-jugador clickable" onClick={() => finalizarSeleccionJugador(jugador)}>
-                          {jugador.nombre} {jugador.apellidos}
-                        </div>
-                      ))}
-                    </div>
-                    <button onClick={() => setSeleccionandoJugador(null)} className="btn-secondary" style={{marginTop: '10px'}}>Cancelar</button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="card posesion-card">
-                      <h3>Posesión</h3>
-                      <div className="posesion-display">
-                        {Math.round((posesion.nuestra / (posesion.nuestra + posesion.rival || 1)) * 100)}% - {Math.round((posesion.rival / (posesion.nuestra + posesion.rival || 1)) * 100)}%
-                      </div>
-                      <div className="posesion-controles">
-                        <button onClick={() => setQuienTienePosesion('nuestra')} style={{background: quienTienePosesion === 'nuestra' ? '#2563eb' : '#e2e8f0', color: quienTienePosesion === 'nuestra' ? 'white' : '#4a5568'}} disabled={cronoEnPausa}>Nuestra</button>
-                        <button onClick={() => setQuienTienePosesion('rival')} style={{background: quienTienePosesion === 'rival' ? '#ef4444' : '#e2e8f0', color: quienTienePosesion === 'rival' ? 'white' : '#4a5568'}} disabled={cronoEnPausa}>Rival</button>
-                      </div>
-                    </div>
-                    <div className="card acciones-card">
-                      <h3>Registrar Acción</h3>
-                      <div className="acciones-botones">
-                        <button onClick={() => iniciarSeleccionJugador('GOL')} disabled={cronoEnPausa}>
-                          <span className="accion-icon-vivo">⚽</span> Registrar Gol
-                        </button>
-                        <button onClick={() => iniciarSeleccionJugador('ASISTENCIA')} disabled={cronoEnPausa}>
-                          <span className="accion-icon-vivo">🤝</span> Registrar Asistencia
-                        </button>
-                        <button onClick={() => iniciarSeleccionJugador('AMARILLA')} disabled={cronoEnPausa}>
-                          <span className="tarjeta-amarilla"></span> Tarjeta Amarilla
-                        </button>
-                        <button onClick={() => iniciarSeleccionJugador('ROJA')} disabled={cronoEnPausa}>
-                          <span className="tarjeta-roja"></span> Tarjeta Roja
-                        </button>
-                        <button onClick={() => iniciarSeleccionJugador('SUSTITUCION')} disabled={cronoEnPausa}>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
-                          Sustitución
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-                <div className="card feed-acciones-card">
-                  <h3>Feed de Acciones</h3>
-                  <div className="feed-acciones-lista">
-                    {accionesEnVivo.length > 0 ? (
-                      accionesEnVivo.slice().reverse().map(accion => (
-                        <div key={accion.id} className="feed-item">
-                          <span>{accion.minuto}' - {accion.tipo} de {accion.nombre_jugador}</span>
-                          <button className="btn-delete-accion" onClick={() => handleEliminarAccion(accion.id)}>
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                          </button>
-                        </div>
-                      ))
-                    ) : (<p>Aún no se han registrado acciones.</p>)}
-                  </div>
-                </div>
-              </div>
-
-              {/* --- Columna Derecha (Campo y Suplentes) --- */}
-              <div className="en-vivo-columna-derecha">
-                <div className="campo-y-suplentes-container">
-                  <CampoDeJuego 
-                    titulares={titulares} 
-                    onJugadorClick={(jugador) => gestionarAlineacion(jugador, false)} // Clic en titular lo saca
-                    formacion={formacion}
-                    tiempoEnCampo={tiempoEnCampo}
-                  />
-                  <div className="banquillo-container">
-                    <h3>Banquillo</h3>
-                    <div className="banquillo-jugadores">
-                      {suplentes.map(j => (<div key={j.id} className="jugador-suplente clickable" onClick={() => gestionarAlineacion(j, true)}>
-                          <span className="dorsal">{j.dorsal || '-'}</span>
-                          <span className="nombre">{j.apodo || j.nombre}</span>
-                        </div>))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-
-      {vista === 'evaluacion' && (
+  const renderAlineacion = () => (
+    <div>
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Define tu Alineación Titular</h3>
         <div>
-          {yaEvaluado ? (
-            <div className="card">
-              <h2>Estadísticas Registradas del Partido</h2>
-              <div className="marcador-final">
-                <span>{evento.goles_local ?? statsPartido.goles_local}</span> - <span>{evento.goles_visitante ?? statsPartido.goles_visitante}</span>
-              </div>
-              <div className="tabla-responsive-wrapper">
-                <table className="tabla-evaluaciones">
-                  <thead>
-                    <tr>
-                      <th>Jugador</th><th>Téc.</th><th>Fís.</th><th>Táct.</th><th>Act.</th>
-                      <th>Min.</th><th>Goles</th><th>Asist.</th><th>TA</th><th>TR</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {evaluacionesGuardadas.map(e => (
-                      <tr key={e.id_jugador}>
-                        <td>{e.nombre} {e.apellidos}</td>
-                        <td>{e.tecnica || 0}</td>
-                        <td>{e.fisico || 0}</td>
-                        <td>{e.tactica || 0}</td>
-                        <td>{e.actitud || 0}</td>
-                        <td>{e.minutos_jugados || 0}</td>
-                        <td>{e.goles || 0}</td>
-                        <td>{e.asistencias || 0}</td>
-                        <td>{e.tarjetas_amarillas_partido || 0}</td>
-                        <td>{e.tarjetas_rojas_partido || 0}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div className="card">
-                <h2>Resultado del Partido</h2>
-                <div className="form-resultado-partido">
-                  <div className="input-group">
-                    <label>{evento.condicion === 'Local' ? 'Tu Equipo (Local)' : 'Equipo Local'}</label>
-                    <input type="number" min="0" name="goles_local" value={statsPartido.goles_local} onChange={(e) => setStatsPartido(prev => ({...prev, goles_local: Number(e.target.value)}))} disabled={currentUser?.rol !== 'administrador'} />
-                  </div>
-                  <span>-</span>
-                  <div className="input-group">
-                    <label>{evento.condicion === 'Visitante' ? 'Tu Equipo (Visitante)' : 'Equipo Visitante'}</label>
-                    <input type="number" min="0" name="goles_visitante" value={statsPartido.goles_visitante} onChange={(e) => setStatsPartido(prev => ({...prev, goles_visitante: Number(e.target.value)}))} disabled={currentUser?.rol !== 'administrador'} />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="card">
-                <h2>Evaluación Rápida de Jugadores</h2>
-                <p>1. Haz clic en un jugador para seleccionarlo. 2. Haz clic en el título de una columna para moverlo.</p>
-                
-                <div className="evaluacion-por-clics-container">
-                  {Object.keys(columnas).map((colId) => (
-                    <ClickEvaluacionColumna
-                      key={colId}
-                      id={colId}
-                      titulo={colId.replace(/_/g, ' ').toUpperCase()}
-                      cantidad={columnas[colId].length}
-                      onHeaderClick={() => moverJugadorAColumna(colId)}
-                    >
-                      {columnas[colId].map(jugador => (
-                        <ClickEvaluacionJugador
-                          key={jugador.id}
-                          jugador={jugador}
-                          isActive={jugadorActivoId === jugador.id}
-                          onSelect={() => setJugadorActivoId(jugador.id)}
-                        />
-                      ))}
-                    </ClickEvaluacionColumna>
-                  ))}
-                </div>
+          <label htmlFor="formacion" className="text-sm font-medium mr-2">Formación:</label>
+          <select
+            id="formacion"
+            value={formacion}
+            onChange={e => setFormacion(e.target.value)}
+            className="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md py-1 px-2"
+          >
+            <option value="4-3-3">4-3-3</option>
+            <option value="4-4-2">4-4-2</option>
+            <option value="3-5-2">3-5-2</option>
+            <option value="4-1-4-1">4-1-4-1</option>
+            <option value="3-4-3">3-4-3</option>
+            <option value="5-4-1">5-4-1</option>
+            <option value="4-3-2-1">4-3-2-1</option>
+            <option value="4-2-3-1">4-2-3-1</option>
+          </select>
+        </div>
+      </div>
 
-                {currentUser?.rol === 'administrador' && (
-                  <button onClick={guardarEvaluacionesYStats} className="btn-full-width">
-                    Guardar Evaluaciones y Estadísticas
-                  </button>
-                )}
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <div className="w-full aspect-[3/2] max-w-2xl mx-auto">
+            <CampoDeJuego 
+              titulares={titulares} 
+              formacion={formacion} 
+              onJugadorClick={quitarTitular} 
+              jugadorSeleccionadoId={jugadorParaIntercambio?.id} 
+            />
+          </div>
+        </div>
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <h4 className="font-bold mb-2 text-gray-800 dark:text-gray-200">Banquillo ({suplentes.length})</h4>
+          <ul className="space-y-2 max-h-96 overflow-y-auto">
+            {suplentes.map(j => (
+              <li key={j.id} className={`flex justify-between items-center p-2 rounded-md transition-colors cursor-pointer ${jugadorParaIntercambio?.id === j.id ? 'bg-blue-200 dark:bg-blue-800' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                <span className="text-sm">#{j.numero_camiseta} {j.nombre}</span>
+                <div>
+                  {activeTab === 'alineacion' ? (
+                    <button onClick={() => agregarTitular(j)} className="text-blue-500 hover:text-blue-700 text-sm font-semibold">Alinear</button>
+                  ) : (
+                    <button onClick={() => seleccionarParaIntercambio(j)} className="text-yellow-500 hover:text-yellow-600 text-sm font-semibold">
+                      {jugadorParaIntercambio?.id === j.id ? 'Cancelar' : 'Sustituir'}
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <div className="mt-6">
+        <button onClick={guardarAlineacion} className="w-full bg-blue-600 text-white py-2.5 rounded-md hover:bg-blue-700 transition-colors font-semibold">Guardar Alineación</button>
+      </div>
+    </div>
+  );
+
+  const renderEnVivo = () => (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Columna de Controles y Acciones */}
+      <div className="lg:col-span-1 space-y-6">
+        {/* Panel de Cronómetro y Fases */}
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md text-center">
+          <h4 className="font-bold mb-2">Marcador</h4>
+          <div className="flex items-center justify-center gap-4">
+            <div className="text-center">
+              <div className="text-4xl font-black">{evento.condicion === 'Local' ? marcador.local : marcador.visitante}</div>
+              <div className="text-xs font-semibold text-gray-500">TU EQUIPO</div>
+            </div>
+            <div className="text-4xl font-bold text-gray-400">-</div>
+            <div className="text-center">
+              <div className="text-4xl font-black">{evento.condicion === 'Local' ? marcador.visitante : marcador.local}</div>
+              <div className="text-xs font-semibold text-gray-500">RIVAL</div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg text-center">
+          <Cronometro segundos={segundosReloj} fase={fase} />
+          <div className="flex justify-center gap-2 mt-4">
+            {fase === 'preparacion' && <button onClick={() => cambiarFase('primer_tiempo')} className="btn-control-vivo bg-green-500"><FaPlay /> Iniciar 1T</button>}
+            {fase === 'primer_tiempo' && (enPausa ? <button onClick={() => setEnPausa(false)} className="btn-control-vivo bg-green-500"><FaPlay /> Reanudar</button> : <button onClick={() => setEnPausa(true)} className="btn-control-vivo bg-yellow-500"><FaPause /> Pausar</button>)}
+            {fase === 'primer_tiempo' && <button onClick={() => cambiarFase('descanso')} className="btn-control-vivo bg-red-500"><FaFlag /> Descanso</button>}
+            {fase === 'descanso' && <button onClick={() => cambiarFase('segundo_tiempo')} className="btn-control-vivo bg-green-500"><FaPlay /> Iniciar 2T</button>}
+            {fase === 'segundo_tiempo' && (enPausa ? <button onClick={() => setEnPausa(false)} className="btn-control-vivo bg-green-500"><FaPlay /> Reanudar</button> : <button onClick={() => setEnPausa(true)} className="btn-control-vivo bg-yellow-500"><FaPause /> Pausar</button>)}
+            {fase === 'segundo_tiempo' && <button onClick={() => cambiarFase('finalizado')} className="btn-control-vivo bg-red-500"><FaStop /> Finalizar</button>}
+          </div>
+        </div>
+
+        {/* Panel de Registro de Acciones */}
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+          <h4 className="font-bold mb-3">Registrar Acción</h4>
+          {seleccionandoAccion && (
+            <div className="p-3 mb-3 bg-blue-100 dark:bg-blue-900/50 rounded-md text-center">
+              <p className="font-semibold">Selecciona un jugador para: <strong>{seleccionandoAccion.tipo}</strong></p>
+              <button onClick={() => setSeleccionandoAccion(null)} className="text-xs text-red-500 mt-1">Cancelar</button>
             </div>
           )}
+          <div className="grid grid-cols-3 gap-2">
+            <button onClick={() => setSeleccionandoAccion({ tipo: 'GOL' })} className="btn-accion">⚽ Gol</button>
+            <button onClick={() => setSeleccionandoAccion({ tipo: 'TIRO_A_PUERTA' })} className="btn-accion">🎯 A Puerta</button>
+            <button onClick={() => setSeleccionandoAccion({ tipo: 'CORNERS' })} className="btn-accion">📐 Córner</button>
+            <button onClick={() => setSeleccionandoAccion({ tipo: 'ASISTENCIA' })} className="btn-accion">🤝 Asistencia</button>
+            <button onClick={() => setSeleccionandoAccion({ tipo: 'AMARILLA' })} className="btn-accion">🟨 Amarilla</button>
+            <button onClick={() => setSeleccionandoAccion({ tipo: 'ROJA' })} className="btn-accion">🟥 Roja</button>
+            <button onClick={registrarGolEnContra} className="btn-accion col-span-2">🥅 Gol en Contra</button>
+          </div>
         </div>
-      )}
 
-      {currentUser?.rol === 'administrador' && (
-        <div style={{ marginTop: '40px', textAlign: 'center' }}>
-          <button onClick={eliminarEvento} className="btn-danger-outline">Eliminar este evento</button>
+        {/* Panel de Suplentes en Vivo */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <h4 className="font-bold mb-2 text-gray-800 dark:text-gray-200">Banquillo ({suplentes.length})</h4>
+          <ul className="space-y-2 max-h-48 overflow-y-auto">
+            {suplentes.map(j => (
+              <li key={j.id} className={`flex justify-between items-center p-2 rounded-md transition-colors cursor-pointer ${jugadorParaIntercambio?.id === j.id ? 'bg-blue-200 dark:bg-blue-800' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">#{j.numero_camiseta} {j.nombre}</span>
+                  {tiempoEnCampo[j.id] > 0 && (
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded-full">
+                      {formatTime(tiempoEnCampo[j.id])}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <button onClick={() => seleccionarParaIntercambio(j)} className="text-yellow-500 hover:text-yellow-600 text-sm font-semibold">
+                    {jugadorParaIntercambio?.id === j.id ? 'Cancelar' : 'Sustituir'}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
-      )}
+      </div>
+
+      {/* Columna de Campo y Feed */}
+      <div className="lg:col-span-2 space-y-6">
+        <div className="w-full aspect-[3/2] max-w-2xl mx-auto">
+          <CampoDeJuego 
+            titulares={titulares} 
+            formacion={formacion} 
+            onJugadorClick={handleJugadorClickEnVivo} 
+            jugadorSeleccionadoId={jugadorParaIntercambio?.id}
+            tiempoEnCampo={tiempoEnCampo}
+            evaluaciones={evaluaciones}
+            onMomentumChange={handleMomentumChange}
+          />
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+          <h4 className="font-bold mb-3">Feed de Acciones</h4>
+          <ul className="space-y-2 max-h-48 overflow-y-auto text-sm">
+            {acciones.slice().reverse().map(accion => (
+              <li key={accion.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                <span className="font-bold">{accion.minuto}'</span>
+                <span>{accion.tipo} - {accion.jugador_nombre}</span>
+              </li>
+            ))}
+            {acciones.length === 0 && <p className="text-gray-500 text-center">No hay acciones registradas.</p>}
+          </ul>
+        </div>
+      </div>
+      <style>{`
+        .btn-control-vivo { display: inline-flex; align-items: center; gap: 0.5rem; color: white; font-weight: bold; padding: 0.5rem 1rem; border-radius: 0.5rem; }
+        .btn-accion { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; background-color: #f3f4f6; border: 1px solid #d1d5db; padding: 0.75rem; border-radius: 0.5rem; font-weight: 600; transition: all 0.2s; }
+        .dark .btn-accion { background-color: #374151; border-color: #4b5563; }
+        .btn-accion:hover { background-color: #e5e7eb; border-color: #9ca3af; }
+        .dark .btn-accion:hover { background-color: #4b5563; border-color: #6b7280; }
+      `}</style>
     </div>
   );
-}
 
-// --- Componentes Internos para Evaluación Rápida ---
+  // --- Renderizado Principal ---
+  if (loading) {
+    return <div className="text-center p-8 text-gray-500 dark:text-gray-400">Cargando evento...</div>;
+  }
 
-function ClickEvaluacionColumna({ id, titulo, cantidad, onHeaderClick, children }) {
-  return (
-    <div className="evaluacion-columna">
-      <div className="evaluacion-columna-header" onClick={onHeaderClick}>
-        <h3>{titulo}</h3>
-        <span className="cantidad">{cantidad}</span>
+  if (error) {
+    return (
+      <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-center">
+        <p className="font-bold">Error</p>
+        <p>{error}</p>
+        <Link to="/eventos" className="mt-4 inline-block bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+          Volver a Eventos
+        </Link>
       </div>
-      <div className="evaluacion-columna-body">
-        {children}
-      </div>
-    </div>
-  );
-}
+    );
+  }
 
-function ClickEvaluacionJugador({ jugador, isActive, onSelect }) {
+  if (!evento) {
+    return <div className="text-center p-8 text-gray-500 dark:text-gray-400">Evento no encontrado.</div>;
+  }
+
   return (
-    <div
-      className={`jugador-evaluacion-capsula ${isActive ? 'active' : ''}`}
-      onClick={onSelect}
-    >
-      <span className="dorsal">{jugador.dorsal || '-'}</span>
-      <span className="nombre">{jugador.apodo || jugador.nombre}</span>
+    <div className="space-y-6">
+      {/* Encabezado del Evento */}
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{evento.titulo}</h1>
+        <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500 dark:text-gray-400">
+          <span className="font-semibold capitalize"><strong>Tipo:</strong> {evento.tipo}</span>
+          <span><strong>Fecha:</strong> {formatearFecha(evento.fecha)}</span>
+          {evento.ubicacion && <span><strong>Ubicación:</strong> {evento.ubicacion}</span>}
+          {evento.tipo === 'partido' && evento.equipoRival && <span><strong>Rival:</strong> {evento.equipoRival}</span>}
+        </div>
+      </div>
+
+      {/* Pestañas de Navegación */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav className="p-4 flex flex-wrap gap-2" aria-label="Tabs">
+            <TabButton tabName="convocatoria" disabled={evento?.evaluado}>Convocatoria</TabButton>
+            <TabButton tabName="alineacion" disabled={evento?.evaluado}>Alineación</TabButton>
+            <TabButton tabName="envivo">En Vivo</TabButton>
+            <TabButton tabName="evaluacion" onClick={sincronizarStatsParaEvaluacion}>Evaluación</TabButton>
+            <Link to="/eventos" className="ml-auto px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md">
+              Volver
+            </Link>
+          </nav>
+        </div>
+
+        {/* Contenido de las Pestañas */}
+        <div className="p-4 md:p-6">
+          {activeTab === 'convocatoria' && renderConvocatoria()}
+          {activeTab === 'alineacion' && renderAlineacion()}
+          {activeTab === 'envivo' && renderEnVivo()}
+          {activeTab === 'evaluacion' && renderEvaluacion()}
+        </div>
+      </div>
     </div>
   );
 }
