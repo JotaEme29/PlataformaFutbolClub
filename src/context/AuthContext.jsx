@@ -1,220 +1,115 @@
-// src/context/AuthContext.jsx - VERSIÓN 2.0 CON SOPORTE PARA CLUBES
-
+// src/context/AuthContext.jsx
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '../firebase';
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged 
-} from 'firebase/auth';
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  limit,
-  writeBatch,
-  serverTimestamp
-} from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../config/firebase';
+import { obtenerUsuario } from '../services/userService';
+import { obtenerClub } from '../services/clubService';
+import { registrarUsuario, iniciarSesion, cerrarSesion } from '../services/authService';
+import { tienePermiso } from '../constants/roles';
 
 const AuthContext = createContext();
 
+/**
+ * Hook para usar el contexto de autenticación
+ */
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth debe usarse dentro de AuthProvider');
+  }
+  return context;
 }
 
+/**
+ * Proveedor del contexto de autenticación
+ */
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
+  const [userClub, setUserClub] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Función original de signup (mantener compatibilidad con v1)
-  async function signup(email, password) {
+  /**
+   * Cargar datos completos del usuario y su club
+   */
+  const cargarDatosUsuario = async (uid) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      const userDocRef = doc(db, 'usuarios', user.uid);
-      const invitacionesRef = collection(db, 'invitaciones');
-      const q = query(invitacionesRef, where('email', '==', email.toLowerCase()), limit(1));
-      const invitacionSnapshot = await getDocs(q);
+      const userData = await obtenerUsuario(uid);
+      
+      if (!userData) {
+        console.warn('Usuario no encontrado en Firestore');
+        setCurrentUser(null);
+        setUserClub(null);
+        return;
+      }
 
-      if (!invitacionSnapshot.empty) {
-        const invitacionDoc = invitacionSnapshot.docs[0];
-        const datosInvitacion = invitacionDoc.data();
-        await setDoc(userDocRef, {
-          email: user.email,
-          rol: datosInvitacion.rol,
-          teamId: datosInvitacion.teamId,
-        });
-        const batch = writeBatch(db);
-        batch.delete(invitacionDoc.ref);
-        await batch.commit();
-      } else {
-        await setDoc(userDocRef, {
-          email: user.email,
-          rol: 'administrador',
-          teamId: user.uid,
-        });
+      setCurrentUser(userData);
+
+      // Cargar datos del club si el usuario tiene uno asignado
+      if (userData.clubId) {
+        const clubData = await obtenerClub(userData.clubId);
+        setUserClub(clubData);
       }
     } catch (error) {
-      console.error("Error en el proceso de signup:", error.code, error.message);
-      throw error;
+      console.error('Error al cargar datos del usuario:', error);
+      setError(error.message);
     }
-  }
+  };
 
-  // Nueva función para registro de clubes (v2.0)
-  async function signupClub(formData) {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      const user = userCredential.user;
-      
-      const batch = writeBatch(db);
-      
-      // Crear documento del club
-      const clubDocRef = doc(db, 'clubes', user.uid);
-      const clubData = {
-        id: user.uid,
-        nombre: formData.nombreClub,
-        ciudad: formData.ciudad,
-        pais: formData.pais,
-        telefono: formData.telefono || '',
-        fechaCreacion: serverTimestamp(),
-        administradorId: user.uid,
-        activo: true,
-        version: '2.0',
-        configuracion: {
-          maxEquipos: 12,
-          formatosPermitidos: [5, 7, 8, 9, 11]
-        }
-      };
-      batch.set(clubDocRef, clubData);
-
-      // Crear documento del usuario administrador
-      const userDocRef = doc(db, 'usuarios', user.uid);
-      const userData = {
-        uid: user.uid,
-        email: user.email,
-        nombre: formData.nombreAdministrador,
-        apellido: formData.apellidoAdministrador,
-        rol: 'administrador_club',
-        clubId: user.uid,
-        fechaRegistro: serverTimestamp(),
-        activo: true,
-        version: '2.0'
-      };
-      batch.set(userDocRef, userData);
-
-      // Crear colección de categorías vacía para el club
-      const categoriasDocRef = doc(db, 'clubes', user.uid, 'categorias', 'placeholder');
-      batch.set(categoriasDocRef, {
-        placeholder: true,
-        fechaCreacion: serverTimestamp()
-      });
-
-      // Ejecutar todas las operaciones
-      await batch.commit();
-      
-      console.log('Club creado exitosamente:', clubData.nombre);
-      
-    } catch (error) {
-      console.error("Error en el proceso de signupClub:", error.code, error.message);
-      throw error;
-    }
-  }
-
-  function login(email, password) {
-    return signInWithEmailAndPassword(auth, email, password);
-  }
-
-  function logout() {
-    return signOut(auth);
-  }
-
-  // Función para obtener datos del club
-  async function getClubData(clubId) {
-    try {
-      const clubDocRef = doc(db, 'clubes', clubId);
-      const clubDoc = await getDoc(clubDocRef);
-      
-      if (clubDoc.exists()) {
-        return { id: clubDoc.id, ...clubDoc.data() };
-      } else {
-        console.warn(`Club con ID ${clubId} no encontrado`);
-        return null;
-      }
-    } catch (error) {
-      console.error("Error al obtener datos del club:", error);
-      return null;
-    }
-  }
-
-  // Función para obtener equipos del club
-  async function getEquiposClub(clubId) {
-    try {
-      const equiposRef = collection(db, 'clubes', clubId, 'equipos');
-      const equiposSnapshot = await getDocs(equiposRef);
-      
-      return equiposSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-    } catch (error) {
-      console.error("Error al obtener equipos del club:", error);
-      return [];
-    }
-  }
-
+  /**
+   * Efecto para escuchar cambios en el estado de autenticación
+   */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const userDocRef = doc(db, 'usuarios', user.uid);
-        try {
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            
-            // Si es un usuario v2.0 (administrador de club), obtener datos del club
-            if (userData.version === '2.0' && userData.clubId) {
-              const clubData = await getClubData(userData.clubId);
-              setCurrentUser({ 
-                ...user, 
-                ...userData, 
-                club: clubData 
-              });
-            } else {
-              // Usuario v1.0 o sin club asociado
-              setCurrentUser({ ...user, ...userData });
-            }
-          } else {
-            console.warn(`ADVERTENCIA: El usuario ${user.email} está autenticado pero no tiene un documento de datos en la colección 'usuarios'.`);
-            setCurrentUser(user);
-          }
-        } catch (error) {
-          console.error("Error de permisos al leer el documento del usuario. La aplicación podría no funcionar correctamente. Revisa tus Reglas de Seguridad de Firestore.", error);
-          setCurrentUser(user);
-        }
+        await cargarDatosUsuario(user.uid);
       } else {
         setCurrentUser(null);
+        setUserClub(null);
       }
-      
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
+  /**
+   * Verificar si el usuario tiene un permiso específico
+   */
+  const verificarPermiso = (permiso) => {
+    if (!currentUser?.rol) return false;
+    return tienePermiso(currentUser.rol, permiso);
+  };
+
+  /**
+   * Recargar datos del usuario actual
+   */
+  const recargarUsuario = async () => {
+    if (currentUser?.uid) {
+      await cargarDatosUsuario(currentUser.uid);
+    }
+  };
+
   const value = {
+    // Estado
     currentUser,
+    userClub,
     loading,
-    signup,
-    signupClub, // Nueva función para v2.0
-    login,
-    logout,
-    getClubData,
-    getEquiposClub
+    error,
+    
+    // Funciones de autenticación
+    registrarUsuario,
+    iniciarSesion,
+    cerrarSesion,
+    
+    // Utilidades
+    verificarPermiso,
+    recargarUsuario,
+    
+    // Shortcuts para permisos comunes
+    esAdmin: currentUser?.rol === 'administrador',
+    esEntrenador: currentUser?.rol === 'entrenador',
+    esJugador: currentUser?.rol === 'jugador'
   };
 
   return (
