@@ -1,81 +1,268 @@
-// src/pages/Registro.jsx - VERSIÓN REDISEÑADA
-
+// src/pages/Registro.jsx
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Registro.css';
 
 function Registro() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const { signup } = useAuth();
   const navigate = useNavigate();
+  const { registrarUsuario } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [step, setStep] = useState(1); // Paso del wizard
+
+  // Datos del formulario
+  const [formData, setFormData] = useState({
+    // Paso 1: Datos del usuario
+    nombre: '',
+    apellido: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    // Paso 2: Datos del club
+    nombreClub: '',
+    ciudad: '',
+    pais: ''
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const validarPaso1 = () => {
+    if (!formData.nombre.trim()) {
+      setError('El nombre es obligatorio');
+      return false;
+    }
+    if (!formData.apellido.trim()) {
+      setError('El apellido es obligatorio');
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError('El correo electrónico es obligatorio');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
+      return false;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      return false;
+    }
+    setError('');
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (validarPaso1()) {
+      setStep(2);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.nombreClub.trim()) {
+      setError('El nombre del club es obligatorio');
+      return;
+    }
+    if (!formData.ciudad.trim() || !formData.pais.trim()) {
+      setError('La ciudad y el país son obligatorios');
+      return;
+    }
+
+    setLoading(true);
     setError('');
+
     try {
-      await signup(email, password);
-      navigate('/dashboard'); // Redirige al dashboard tras un registro exitoso
+      await registrarUsuario(formData);
+      navigate('/dashboard');
     } catch (err) {
-      setError('Error al crear la cuenta. Puede que el email ya esté en uso.');
-      console.error(err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="register-container">
-      <div className="register-brand">
-        <div className="brand-title">Únete a la plataforma</div>
-        <div className="brand-claim">Organiza tu club con precisión y estilo deportivo.</div>
-      </div>
-      <div className="register-box">
-        <div className="register-card">
-          <h2>Crear una Cuenta</h2>
-          <p className="sub">Comienza gratis</p>
+    <div className="registro-container">
+      <div className="registro-card">
+        <div className="registro-header">
+          <h1>Crear Cuenta</h1>
+          <p className="subtitle">Gestiona tu club de fútbol profesionalmente</p>
+        </div>
 
-          {error && <p className="auth-error">{error}</p>}
+        {/* Indicador de pasos */}
+        <div className="steps-indicator">
+          <div className={`step ${step >= 1 ? 'active' : ''}`}>
+            <div className="step-number">1</div>
+            <div className="step-label">Datos Personales</div>
+          </div>
+          <div className="step-divider"></div>
+          <div className={`step ${step >= 2 ? 'active' : ''}`}>
+            <div className="step-number">2</div>
+            <div className="step-label">Datos del Club</div>
+          </div>
+        </div>
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-row">
-              <label className="label" htmlFor="email">Correo electrónico</label>
-              <div className="input-wrap">
-                <span className="input-icon" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z"/><path d="M22 6l-10 7L2 6"/></svg>
-                </span>
-                <input className="input"
+        {error && <div className="error-message">{error}</div>}
+
+        <form onSubmit={handleSubmit}>
+          {/* PASO 1: Datos Personales */}
+          {step === 1 && (
+            <div className="form-step">
+              <h3>Tus Datos</h3>
+              
+              <div className="input-row">
+                <div className="input-group">
+                  <label htmlFor="nombre">Nombre *</label>
+                  <input
+                    type="text"
+                    id="nombre"
+                    name="nombre"
+                    value={formData.nombre}
+                    onChange={handleChange}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="input-group">
+                  <label htmlFor="apellido">Apellido *</label>
+                  <input
+                    type="text"
+                    id="apellido"
+                    name="apellido"
+                    value={formData.apellido}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="email">Correo Electrónico *</label>
+                <input
                   type="email"
                   id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
                   required
                 />
               </div>
-            </div>
-            <div className="form-row">
-              <label className="label" htmlFor="password">Contraseña</label>
-              <div className="input-wrap">
-                <span className="input-icon" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                </span>
-                <input className="input"
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            <button type="submit" className="btn-auth-primary">Registrarse</button>
-          </form>
 
-          <div className="register-footer">
-            <p>
-              ¿Ya tienes cuenta? <Link to="/login">Inicia Sesión</Link>
-            </p>
-          </div>
+              <div className="input-row">
+                <div className="input-group">
+                  <label htmlFor="password">Contraseña *</label>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div className="input-group">
+                  <label htmlFor="confirmPassword">Confirmar Contraseña *</label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              <button 
+                type="button" 
+                className="btn-primary"
+                onClick={handleNextStep}
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
+
+          {/* PASO 2: Datos del Club */}
+          {step === 2 && (
+            <div className="form-step">
+              <h3>Datos del Club</h3>
+              
+              <div className="input-group">
+                <label htmlFor="nombreClub">Nombre del Club *</label>
+                <input
+                  type="text"
+                  id="nombreClub"
+                  name="nombreClub"
+                  value={formData.nombreClub}
+                  onChange={handleChange}
+                  placeholder="Ej: Club Deportivo Los Leones"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="input-row">
+                <div className="input-group">
+                  <label htmlFor="ciudad">Ciudad *</label>
+                  <input
+                    type="text"
+                    id="ciudad"
+                    name="ciudad"
+                    value={formData.ciudad}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="input-group">
+                  <label htmlFor="pais">País *</label>
+                  <input
+                    type="text"
+                    id="pais"
+                    name="pais"
+                    value={formData.pais}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="info-box">
+                <p>ℹ️ Serás el <strong>Administrador</strong> del club y podrás invitar a otros usuarios después.</p>
+              </div>
+
+              <div className="button-group">
+                <button 
+                  type="button" 
+                  className="btn-secondary"
+                  onClick={() => setStep(1)}
+                  disabled={loading}
+                >
+                  Atrás
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn-primary"
+                  disabled={loading}
+                >
+                  {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
+                </button>
+              </div>
+            </div>
+          )}
+        </form>
+
+        <div className="registro-footer">
+          <p>¿Ya tienes cuenta? <Link to="/login">Inicia Sesión</Link></p>
         </div>
       </div>
     </div>
